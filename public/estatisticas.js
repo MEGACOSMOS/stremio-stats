@@ -35,7 +35,7 @@ export function lerBiblioteca(itens) {
       nome: i.name || i._id,
       poster: i.poster || (i._id.startsWith('tt') ? posterDe(i._id) : null),
       vezes: Math.max(s.timesWatched || 0, s.flaggedWatched ? 1 : 0),
-      quando: instante(s.lastWatched) ?? instante(i._mtime),
+      quando: instante(s.lastWatched),
       adicionado: instante(i._ctime),
       duracao: s.duration || 0,
       tempoReal: s.overallTimeWatched || 0,
@@ -44,8 +44,34 @@ export function lerBiblioteca(itens) {
     if (filme.vezes > 0) vistos.push(filme);
     else if ((s.timeOffset || 0) > 0 && (!i.removed || i.temp)) porAcabar.push(filme);
   }
-  const maisRecente = (a, b) => (b.quando || 0) - (a.quando || 0);
+  semDataCerta(vistos);
   return { vistos: vistos.sort(maisRecente), porAcabar: porAcabar.sort(maisRecente) };
+}
+
+// Filmes sem data de visualização no fim; entre eles, a ordem é a da data
+// que o Stremio tem (a da marcação ou importação).
+export const maisRecente = (a, b) => (b.quando || 0) - (a.quando || 0)
+  || (b.dataStremio || 0) - (a.dataStremio || 0);
+export const maisAntigo = (a, b) => (!a.quando) - (!b.quando) || (a.quando || 0) - (b.quando || 0);
+
+// Quando se marcam vários filmes como vistos de uma vez (ou o Stremio importa
+// ou sincroniza a biblioteca), todos ficam com a data desse momento. Ninguém
+// acaba dois filmes com menos de 20 minutos de intervalo, por isso essas datas
+// não dizem quando o filme foi visto: não entram nas contas por mês, dia e hora.
+const INTERVALO_MINIMO = 20 * 60 * 1000;
+function semDataCerta(vistos) {
+  const comData = vistos.filter((f) => f.quando).sort((a, b) => a.quando - b.quando);
+  const duvidosos = new Set();
+  for (let i = 1; i < comData.length; i++) {
+    if (comData[i].quando - comData[i - 1].quando < INTERVALO_MINIMO) {
+      duvidosos.add(comData[i]);
+      duvidosos.add(comData[i - 1]);
+    }
+  }
+  for (const f of duvidosos) {
+    f.dataStremio = f.quando;
+    f.quando = null;
+  }
 }
 
 // Partes de uma data no fuso horário de quem vê (o Cloudflare corre em UTC).
@@ -94,7 +120,8 @@ export function resumoBase(vistos, { fuso = 'UTC', agora = Date.now() } = {}) {
     vezesTotal: vistos.reduce((s, f) => s + f.vezes, 0),
     revistos: vistos.filter((f) => f.vezes > 1).length,
     maisRevistos: vistos.filter((f) => f.vezes > 1).sort((a, b) => b.vezes - a.vezes || (b.quando || 0) - (a.quando || 0)).slice(0, 10),
-    ultimos: vistos.slice(0, 10),
+    ultimos: vistos.filter((f) => f.quando).slice(0, 10),
+    semData: vistos.filter((f) => !f.quando).length,
     tempoReal,
     desde,
     anoAtual,

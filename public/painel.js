@@ -2,7 +2,7 @@
 // detalhes de cada filme ao Cinemeta e desenhar as estatísticas.
 
 import {
-  lerBiblioteca, resumoCompleto, resumirMeta, partes, genero, pais, feitio,
+  lerBiblioteca, resumoCompleto, maisRecente, maisAntigo, resumirMeta, partes, genero, pais, feitio,
   MESES, MESES_CURTOS, DIAS, DIAS_CURTOS, aoDia, numero, horasDe, mesAno, vezes, filmes,
 } from '/estatisticas.js';
 
@@ -407,10 +407,14 @@ function desenhar(r, vistos, porAcabar) {
   // Dias e horas
   const porDiaNomes = nomesPor((p) => p.semana);
   colunas($('#g-dias'), DIAS_CURTOS.map((d, i) => ({ x: d, valor: r.porSemana[i], titulo: DIAS[i], nomes: porDiaNomes.get(i) || [] })), ['Dia', 'Filmes']);
-  $('#t-dias').textContent = r.total ? `Vês mais filmes ${aoDia(r.diaFavorito)}.` : '';
+  const avisoData = r.semData
+    ? ` ${filmes(r.semData)} não ${r.semData === 1 ? 'entra' : 'entram'} aqui: ${r.semData === 1 ? 'foi marcado' : 'foram marcados'} como ${r.semData === 1 ? 'visto' : 'vistos'} de uma vez (ou importados), por isso o Stremio não sabe quando os viste.`
+    : '';
+  $('#t-tempo').textContent = `Pela última vez que viste cada filme — o Stremio só guarda essa data.${avisoData}`;
+  $('#t-dias').textContent = (r.total ? `Vês mais filmes ${aoDia(r.diaFavorito)}.` : '') + avisoData;
   const porHoraNomes = nomesPor((p) => p.hora);
   colunas($('#g-horas'), r.porHora.map((n, h) => ({ x: h % 3 === 0 ? `${h}h` : '', valor: n, titulo: `Das ${h}h às ${(h + 1) % 24}h`, nomes: porHoraNomes.get(h) || [] })), ['Hora', 'Filmes']);
-  $('#t-horas').textContent = r.total ? `A que horas acabas os filmes — costumas ver ${feitio(r.horaFavorita)}.` : '';
+  $('#t-horas').textContent = (r.total ? `A que horas acabas os filmes — costumas ver ${feitio(r.horaFavorita)}.` : '') + avisoData;
 
   // Realizadores, atores, países
   const porRealizador = nomesDe('realizadores');
@@ -460,11 +464,11 @@ function capa(f, extra = '') {
 document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG' && e.target.closest('.capa')) e.target.remove(); }, true);
 
 const ORDENAR = {
-  recentes: (a, b) => (b.quando || 0) - (a.quando || 0),
-  antigos: (a, b) => (a.quando || 0) - (b.quando || 0),
+  recentes: maisRecente,
+  antigos: maisAntigo,
   nota: (a, b) => (b.nota || 0) - (a.nota || 0),
   estreia: (a, b) => (b.ano || 0) - (a.ano || 0),
-  revistos: (a, b) => b.vezes - a.vezes || (b.quando || 0) - (a.quando || 0),
+  revistos: (a, b) => b.vezes - a.vezes || maisRecente(a, b),
   az: (a, b) => a.nome.localeCompare(b.nome, 'pt'),
 };
 
@@ -479,7 +483,7 @@ function desenharLista() {
   $('#t-lista').textContent = escolhidos.length === total ? filmes(total) : `${filmes(escolhidos.length)} de ${numero(total)}`;
   $('#lista').innerHTML = escolhidos.slice(0, lista.mostrados).map((f) => `<a class="filme" href="${linkStremio(f.id)}" title="Abrir no Stremio">
       ${capa(f)}<span class="titulo">${esc(f.nome)}</span>
-      <span class="det">${[f.ano, f.nota && `★ ${decimal(f.nota)}`, f.quando && dataCurta(f.quando)].filter(Boolean).map(esc).join(' · ')}</span></a>`).join('')
+      <span class="det">${[f.ano, f.nota && `★ ${decimal(f.nota)}`, f.quando ? dataCurta(f.quando) : 'sem data'].filter(Boolean).map(esc).join(' · ')}</span></a>`).join('')
     || '<p class="mudo">Nenhum filme encontrado.</p>';
   $('#ver-mais').hidden = escolhidos.length <= lista.mostrados;
 }

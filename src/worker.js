@@ -18,7 +18,7 @@
 
 import DEMO from './demo.json';
 import {
-  lerBiblioteca, resumoBase, partes as partesData, DIAS, aoDia, MESES_CURTOS, mesAno, feitio, numero, horasDe, vezes,
+  lerBiblioteca, resumoBase, maisAntigo, partes as partesData, DIAS, aoDia, MESES_CURTOS, mesAno, feitio, numero, horasDe, vezes,
   filmes, fundoDe,
 } from '../public/estatisticas.js';
 
@@ -159,7 +159,7 @@ function manifesto(origem, cfg) {
 
 function ordenar(vistos, ordem) {
   const lista = [...vistos];
-  if (ordem === 'Mais antigos') return lista.sort((a, b) => (a.quando || 0) - (b.quando || 0));
+  if (ordem === 'Mais antigos') return lista.sort(maisAntigo);
   if (ordem === 'Mais revistos') return lista.sort((a, b) => b.vezes - a.vezes || (b.quando || 0) - (a.quando || 0));
   if (ordem === 'De A a Z') return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
   return lista; // já vêm do mais recente para o mais antigo
@@ -217,8 +217,9 @@ function cartoes(vistos, fuso, origem, base) {
       ? `Este ano já viste ${filmes(r.esteAno)}:\n${linhas(r.vistosEsteAno.slice(0, 25).map((f) => f.nome))}${r.esteAno > 25 ? `\n…e mais ${r.esteAno - 25}.` : ''}`
       : `Ainda não viste nenhum filme em ${r.anoAtual}.`);
 
+  const semData = r.semData ? `\n\n${filmes(r.semData)} não ${r.semData === 1 ? 'entra' : 'entram'} nesta conta: ${r.semData === 1 ? 'foi marcado' : 'foram marcados'} como ${r.semData === 1 ? 'visto' : 'vistos'} de uma vez, por isso o Stremio não sabe quando os viste.` : '';
   const ultimo = r.ultimos[0];
-  cartao('ultimo', 'O último que viste', ultimo.nome, ultimo.quando ? dataCurta(ultimo.quando, fuso) : '',
+  if (ultimo) cartao('ultimo', 'O último que viste', ultimo.nome, ultimo.quando ? dataCurta(ultimo.quando, fuso) : '',
     `Último: ${ultimo.nome}`,
     `Os últimos filmes que viste:\n${linhas(r.ultimos.map((f) => `${f.nome}${f.quando ? ` — ${dataCurta(f.quando, fuso)}` : ''}`))}`);
 
@@ -234,7 +235,7 @@ function cartoes(vistos, fuso, origem, base) {
   cartao('dia', 'Dia favorito', dia, filmes(maxDia),
     `Dia favorito: ${dia}`,
     `É ${aoDia(r.diaFavorito)} que vês mais filmes.\n${linhas(DIAS.map((d, i) => `${d}: ${barra(r.porSemana[i], maxDia)} ${r.porSemana[i]}`))}`
-    + '\n\n(Conta o último dia em que viste cada filme.)');
+    + '\n\n(Conta o último dia em que viste cada filme.)' + semData);
 
   const h = r.horaFavorita;
   const periodos = [['de manhã', 5, 12], ['à tarde', 12, 19], ['à noite', 19, 24], ['de madrugada', 0, 5]]
@@ -242,13 +243,13 @@ function cartoes(vistos, fuso, origem, base) {
   const maxPeriodo = Math.max(...periodos.map((p) => p[1]));
   cartao('hora', 'Hora favorita', `${h}h`, `costumas ver ${feitio(h)}`,
     `Hora favorita: ${h}h`,
-    `A hora a que mais acabas filmes é às ${h}h.\n${linhas(periodos.map(([nome, n]) => `${nome}: ${barra(n, maxPeriodo)} ${n}`))}`);
+    `A hora a que mais acabas filmes é às ${h}h.\n${linhas(periodos.map(([nome, n]) => `${nome}: ${barra(n, maxPeriodo)} ${n}`))}${semData}`);
 
   if (r.melhorMes) {
     const meses = [...r.porMes].sort((a, b) => b[1] - a[1]).slice(0, 5);
     cartao('mes', 'O teu melhor mês', mesAno(r.melhorMes[0], true), filmes(r.melhorMes[1]),
       `Melhor mês: ${mesAno(r.melhorMes[0])}`,
-      `Os meses em que viste mais filmes:\n${linhas(meses.map(([m, n]) => `${mesAno(m)} — ${filmes(n)}`))}`);
+      `Os meses em que viste mais filmes:\n${linhas(meses.map(([m, n]) => `${mesAno(m)} — ${filmes(n)}`))}${semData}`);
   }
 
   cartao('painel', 'Quero ver mais', 'Painel completo', 'géneros, realizadores…',
