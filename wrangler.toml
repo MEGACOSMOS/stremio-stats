@@ -1,0 +1,8 @@
+name = "stremio-estatisticas"
+main = "src/worker.js"
+compatibility_date = "2026-03-10"
+
+# O painel (public/) é servido diretamente; o resto passa pelo Worker.
+[assets]
+directory = "./public"
+binding = "ASSETS"

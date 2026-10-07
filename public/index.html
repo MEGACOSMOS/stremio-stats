@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Os meus filmes no Stremio</title>
+  <meta name="description" content="Estatísticas de todos os filmes que já viste no Stremio.">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/estilo.css">
+  <script type="module" src="/painel.js"></script>
+</head>
+<body>
+  <header class="topo">
+    <div class="marca"><img src="/logo.svg" alt=""><span>Os meus filmes no Stremio</span></div>
+    <button class="botao" id="instalar" hidden>Instalar no Stremio</button>
+    <button class="botao fantasma" id="sair" hidden>Sair</button>
+  </header>
+
+  <main>
+    <!-- Entrar -->
+    <section class="entrada" id="vista-entrada" hidden>
+      <h1>Tudo o que já viste no Stremio, em números.</h1>
+      <p>Quantos filmes, quantas horas, os teus géneros, realizadores e atores preferidos, os dias e as horas
+        em que mais vês — e uma extensão que põe tudo isto dentro do próprio Stremio.</p>
+
+      <div class="caixa" id="caixa-entrar">
+        <div class="acoes">
+          <button class="botao grande" id="entrar-link">Entrar com a minha conta do Stremio</button>
+          <button class="botao fantasma grande" id="ver-exemplo">Ver um exemplo</button>
+        </div>
+        <p class="erro" id="erro-entrada" hidden></p>
+
+        <details class="alternativa" id="alternativa">
+          <summary>Prefiro escrever o email e a palavra-passe</summary>
+          <form class="login" id="form-login">
+            <label class="campo">Email da conta do Stremio
+              <input type="email" name="email" autocomplete="username" required>
+            </label>
+            <label class="campo">Palavra-passe
+              <input type="password" name="password" autocomplete="current-password" required>
+            </label>
+            <button class="botao" type="submit">Entrar</button>
+          </form>
+        </details>
+      </div>
+
+      <div class="caixa" id="caixa-codigo" hidden>
+        <ol class="passos">
+          <li>Abre a página de confirmação do Stremio (entra na tua conta se ele pedir).</li>
+          <li>Confirma que o código é este:</li>
+        </ol>
+        <div class="codigo" id="codigo">····</div>
+        <div class="acoes" style="margin-top:16px">
+          <a class="botao" id="abrir-link" href="#" target="_blank" rel="noopener noreferrer">Abrir a página de confirmação</a>
+          <button class="botao fantasma" id="cancelar-link">Cancelar</button>
+        </div>
+        <div class="espera"><span class="roda" aria-hidden="true"></span><span>À espera da confirmação… esta página continua sozinha.</span></div>
+      </div>
+
+      <p class="privacidade">A palavra-passe nunca passa por aqui: vai diretamente para o Stremio. Esta página só guarda,
+        neste navegador, a chave que o Stremio lhe dá para ler a tua biblioteca. Para a apagar, carrega em “Sair”.</p>
+    </section>
+
+    <!-- A carregar -->
+    <section class="carregar" id="vista-carregar" hidden>
+      <div id="carregar-texto">A ler o teu histórico do Stremio…</div>
+      <div class="progresso" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="progresso"><div></div></div>
+      <div class="pequeno mudo" id="carregar-detalhe">&nbsp;</div>
+    </section>
+
+    <!-- Painel -->
+    <section id="vista-painel" hidden>
+      <div class="aviso-demo" id="aviso-demo" hidden>
+        <span>Isto é um <strong>exemplo com um histórico inventado</strong>. Os filmes são reais; as datas não.</span>
+        <button class="botao" id="demo-entrar">Ver os meus filmes</button>
+      </div>
+
+      <div class="heroi">
+        <div class="rotulo" id="ola">Filmes vistos</div>
+        <div class="numero" id="total"></div>
+        <p id="frase"></p>
+      </div>
+
+      <div class="mosaico" id="mosaico"></div>
+
+      <div class="grelha">
+        <article class="cartao">
+          <div class="cabeca">
+            <div><h2>Filmes ao longo do tempo</h2><p>Pela última vez que viste cada filme — o Stremio só guarda essa data.</p></div>
+            <div class="segmentos" role="group" aria-label="Agrupar por">
+              <button type="button" data-tempo="mes" aria-pressed="true">Por mês</button>
+              <button type="button" data-tempo="ano" aria-pressed="false">Por ano</button>
+            </div>
+          </div>
+          <div id="g-tempo"></div>
+        </article>
+
+        <article class="cartao metade">
+          <div class="cabeca"><div><h2>Géneros</h2><p>Um filme pode ter vários géneros.</p></div></div>
+          <div id="g-generos"></div>
+        </article>
+        <article class="cartao metade">
+          <div class="cabeca"><div><h2>Décadas de estreia</h2><p>Em que época foram feitos os filmes que vês.</p></div></div>
+          <div id="g-decadas"></div>
+        </article>
+
+        <article class="cartao metade">
+          <div class="cabeca"><div><h2>Dias da semana</h2><p id="t-dias"></p></div></div>
+          <div id="g-dias"></div>
+        </article>
+        <article class="cartao metade">
+          <div class="cabeca"><div><h2>Horas do dia</h2><p id="t-horas"></p></div></div>
+          <div id="g-horas"></div>
+        </article>
+
+        <article class="cartao terco">
+          <div class="cabeca"><div><h2>Realizadores</h2><p>Os que mais viste.</p></div></div>
+          <div id="g-realizadores"></div>
+        </article>
+        <article class="cartao terco">
+          <div class="cabeca"><div><h2>Atores</h2><p>Entre os principais de cada filme.</p></div></div>
+          <div id="g-atores"></div>
+        </article>
+        <article class="cartao terco">
+          <div class="cabeca"><div><h2>Países</h2><p>De onde vêm os filmes.</p></div></div>
+          <div id="g-paises"></div>
+        </article>
+
+        <article class="cartao">
+          <div class="cabeca"><div><h2>Destaques</h2></div></div>
+          <div class="destaques" id="destaques"></div>
+        </article>
+
+        <article class="cartao" id="cartao-meio" hidden>
+          <div class="cabeca"><div><h2>Ficaram a meio</h2><p>Filmes que começaste e ainda não acabaste.</p></div></div>
+          <div class="filmes" id="meio"></div>
+        </article>
+
+        <article class="cartao">
+          <div class="cabeca"><div><h2>Todos os filmes que viste</h2><p id="t-lista"></p></div></div>
+          <div class="filtros">
+            <input type="search" id="procurar" placeholder="Procurar um filme, realizador…" aria-label="Procurar">
+            <select id="ordem" aria-label="Ordenar">
+              <option value="recentes">Mais recentes</option>
+              <option value="antigos">Mais antigos</option>
+              <option value="nota">Melhor nota</option>
+              <option value="estreia">Ano de estreia</option>
+              <option value="revistos">Mais revistos</option>
+              <option value="az">De A a Z</option>
+            </select>
+            <select id="filtro-genero" aria-label="Género"><option value="">Todos os géneros</option></select>
+          </div>
+          <div class="filmes" id="lista"></div>
+          <div class="mais"><button class="botao fantasma" id="ver-mais" hidden>Mostrar mais</button></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>Dados do teu Stremio e do Cinemeta. Esta página não é do Stremio.</footer>
+
+  <div id="dica" role="tooltip" hidden></div>
+
+  <dialog id="janela-instalar">
+    <h2>Instalar no Stremio</h2>
+    <p>A extensão junta à página inicial do Stremio duas filas: <strong>As minhas estatísticas</strong> e
+      <strong>Filmes que já vi</strong>. O botão “Configurar” da extensão traz-te de volta a este painel.</p>
+    <div class="acoes">
+      <a class="botao" id="instalar-abrir" href="#">Abrir no Stremio</a>
+      <button class="botao fantasma" id="instalar-fechar">Fechar</button>
+    </div>
+    <p class="pequeno">Se o botão não abrir o Stremio, copia este link e cola-o na pesquisa da página de extensões do Stremio:</p>
+    <div class="link-copiar"><input id="instalar-url" readonly aria-label="Link da extensão"><button class="botao fantasma" id="instalar-copiar">Copiar</button></div>
+    <p class="cuidado" id="instalar-cuidado">Este link é só teu: dá para ver o teu histórico. Não o partilhes.</p>
+  </dialog>
+</body>
+</html>

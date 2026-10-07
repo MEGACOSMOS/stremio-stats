@@ -1,0 +1,14 @@
+{
+  "name": "stremio-estatisticas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8010",
+    "deploy": "wrangler deploy",
+    "demo": "bun scripts/gerar-demo.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4"
+  }
+}
