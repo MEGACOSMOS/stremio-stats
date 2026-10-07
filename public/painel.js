@@ -511,6 +511,11 @@ $('#instalar').addEventListener('click', async () => {
     const url = `${location.origin}/${cfg}/manifest.json`;
     $('#instalar-url').value = url;
     $('#instalar-abrir').href = url.replace(/^https?:\/\//, 'stremio://');
+    // O Stremio troca stremio:// por https://, que não existe num endereço local:
+    // aqui só serve copiar o link e colá-lo na pesquisa das extensões.
+    const local = location.protocol === 'http:';
+    $('#instalar-abrir').hidden = local;
+    $('#instalar-local').hidden = !local;
     $('#instalar-cuidado').hidden = cfg === 'demo';
     $('#janela-instalar').showModal();
   } catch {
