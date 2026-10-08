@@ -303,9 +303,11 @@ function cartaoSvg(q) {
   const sub = (q.get('s') || '').slice(0, 40);
   const marca = (q.get('m') || 'ESTATÍSTICAS').slice(0, 20);
   const [cor, escuro] = CORES[(parseInt(q.get('c'), 10) || 0) % CORES.length];
-  // Números grandes; nomes de filmes em várias linhas, mais pequenos.
-  const curto = valor.length <= 7;
-  const tamanho = curto ? (valor.length <= 4 ? 120 : 84) : valor.length <= 14 ? 44 : 36;
+  // Números e palavras curtas numa linha, tão grandes quanto cabem nos ~236 px
+  // úteis (≈0,62 em por letra em negrito); nomes de filmes em várias linhas.
+  const umaLinha = Math.min(120, Math.floor(236 / (Math.max(1, valor.length) * 0.62)));
+  const curto = umaLinha >= 42;
+  const tamanho = curto ? umaLinha : valor.length <= 14 ? 44 : 36;
   const linhasValor = curto ? [valor] : partir(valor, tamanho > 40 ? 11 : 13, 4);
   const altura = tamanho * 1.08;
   const topo = 248 - ((linhasValor.length - 1) * altura) / 2;

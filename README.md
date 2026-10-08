@@ -1,122 +1,107 @@
 # Stremio Stats
 
-**Estatísticas de todos os filmes que já viste no Stremio — num painel no navegador e dentro do próprio Stremio.**
+**Statistics for every movie you've watched on Stremio — in a web dashboard and right inside Stremio.**
 
-👉 **[stremiostats.stream](https://stremiostats.stream)** · [ver o exemplo](https://stremiostats.stream/?exemplo)
+👉 **[stremiostats.stream](https://stremiostats.stream)** · [see the example](https://stremiostats.stream/?exemplo&lang=en)
 
-![O painel do Stremio Stats](docs/painel.jpg)
+![The Stremio Stats dashboard](docs/dashboard.jpg)
 
-O Stremio guarda o histórico de tudo o que vês, mas não mostra nada sobre ele. O Stremio Stats lê esse histórico
-(com a tua autorização), junta-lhe os detalhes de cada filme e mostra-te quantos filmes viste, quantas horas
-passaste a ver cinema, de que géneros, décadas, realizadores e atores gostas mais, e em que dias e a que horas vês.
+Stremio keeps a history of everything you watch, but never shows you anything about it. Stremio Stats reads that
+history (with your permission), adds the details of each movie, and shows you how many movies you've watched,
+how many hours you've spent on them, which genres, decades, directors and actors you like most, and on which days
+and at what times you watch.
 
-## O que mostra
+## What it shows
 
-**No painel (navegador)**
+**In the dashboard (web browser)**
 
-- **Os números principais** — filmes vistos, horas de cinema, tempo real de reprodução, filmes este ano,
-  filmes revistos, nota média no IMDb, género, década e realizador favoritos.
-- **Filmes ao longo do tempo** — por mês (últimos dois anos) ou por ano.
-- **Géneros, décadas de estreia, dias da semana e horas do dia.**
-- **Realizadores, atores e países** que mais aparecem no que vês.
-- **Destaques** — melhor e pior nota, o mais longo, o mais curto, o mais antigo, o que mais reviste.
-- **Filmes que ficaram a meio.**
-- **A lista de todos os filmes**, com capa, pesquisa, filtro por género e por ano em que os viste, várias ordens,
-  e um botão para **descarregar tudo em Excel**.
+- **The headline numbers** — movies watched, hours of movies, actual playback time, movies this year,
+  rewatched movies, average IMDb rating, favourite genre, decade and director.
+- **Movies over time** — by month (last two years) or by year.
+- **Genres, release decades, days of the week and times of day.**
+- **The directors, actors and countries** that show up most in what you watch.
+- **Highlights** — best and worst rated, the longest, the shortest, the oldest, the one you rewatched most.
+- **Movies you left halfway.**
+- **The full list of your movies**, with posters, search, filters by genre and by the year you watched them,
+  several sort orders, and a button to **download everything as an Excel file**.
 
-Cada gráfico tem dicas ao passar o rato (com os nomes dos filmes) e uma vista em tabela.
+Every chart has hover tooltips (listing the movies) and a table view.
 
-![Gráficos de géneros, décadas, dias, horas, realizadores, atores e países](docs/graficos.jpg)
+![Charts for genres, decades, days, times of day, directors, actors and countries](docs/charts.jpg)
 
-**Dentro do Stremio (extensão)**
+**Inside Stremio (add-on)**
 
-Depois de instalada, a extensão junta duas filas à página inicial do Stremio:
+Once installed, the add-on adds two rows to Stremio's home screen:
 
-- **As minhas estatísticas** — cartões com os números principais. Cada cartão abre uma página com mais pormenor
-  (os últimos filmes, os mais revistos, os dias da semana em barras, os melhores meses…).
-- **Filmes que já vi** — todos os filmes vistos, que em *Descobrir* se podem ordenar por mais recentes,
-  mais antigos, mais revistos ou de A a Z.
+- **My statistics** — cards with the headline numbers. Each card opens a page with more detail
+  (your latest movies, the most rewatched, days of the week as bars, your best months…).
+- **Movies I've watched** — every movie you've watched, which you can sort in *Discover* by most recent,
+  oldest, most rewatched or A to Z.
 
-O botão **Configurar** da extensão abre o painel completo.
+The add-on's **Configure** button opens the full dashboard.
 
-![Cartões de estatísticas dentro do Stremio](docs/cartoes-stremio.jpg)
+![Statistics cards inside Stremio](docs/stremio-cards.jpg)
 
-**Em cinco línguas** — português, inglês, francês, espanhol e italiano. O painel escolhe a língua do navegador
-(e há um seletor no topo); a extensão fica na língua escolhida no momento da instalação.
+**Five languages** — English, Portuguese, French, Spanish and Italian. The dashboard follows your browser's
+language (and has a language picker at the top); the add-on uses the language chosen when you install it.
 
-## Como usar
+## How to use it
 
-1. Abre **[stremiostats.stream](https://stremiostats.stream)**.
-2. Carrega em **Entrar com a minha conta do Stremio**: aparece um código de 4 letras, que confirmas na página
-   oficial do Stremio — o mesmo sistema que o Stremio usa para ligar uma televisão. Também dá para entrar com
-   email e palavra-passe.
-3. Vê as tuas estatísticas. Para as teres também dentro do Stremio, carrega em **Instalar no Stremio**.
+1. Go to **[stremiostats.stream](https://stremiostats.stream)**.
+2. Click **Sign in with my Stremio account**: a 4-letter code appears, which you confirm on Stremio's official
+   page — the same system Stremio uses to connect a TV. Signing in with email and password also works.
+3. See your statistics. To get them inside Stremio as well, click **Install in Stremio**.
 
-Queres ver primeiro como é? Há um **[exemplo com um histórico inventado](https://stremiostats.stream/?exemplo)**.
+Want to see what it looks like first? There's an **[example with a made-up history](https://stremiostats.stream/?exemplo&lang=en)**.
 
-## Privacidade
+## Privacy
 
-- **A palavra-passe nunca passa pelo Stremio Stats.** Com o código de 4 letras nem chega a ser escrita; com
-  email e palavra-passe vai diretamente do teu navegador para o Stremio.
-- O painel guarda, só no teu navegador, a chave de sessão que o Stremio lhe dá para ler a biblioteca.
-  **Sair** apaga-a.
-- O link de instalação da extensão leva essa chave **cifrada** (AES-GCM) — quem visse o link não ficava com
-  acesso à conta, só às estatísticas. Mesmo assim, é pessoal: não o partilhes.
-- Não há base de dados nem registos: nada do teu histórico fica guardado no servidor.
+- **Your password never goes through Stremio Stats.** With the 4-letter code you don't even type it; with email
+  and password it goes straight from your browser to Stremio.
+- The dashboard keeps, only in your browser, the session key Stremio gives it to read your library.
+  **Sign out** deletes it.
+- The add-on's install link carries that key **encrypted** (AES-GCM) — anyone who saw the link would get your
+  statistics, not access to your account. It's still personal: don't share it.
+- No database, no logs: none of your history is stored on the server.
 
-## Limitações
+## Limitations
 
-- **O Stremio só guarda a última vez que viste cada filme.** As contas por mês, dia e hora usam essa data: um
-  filme visto em 2021 e reaberto em 2023 conta em 2023.
-- **Filmes marcados como vistos todos de uma vez** (ou importados) ficam com a data desse momento. Como ninguém
-  acaba dois filmes com menos de 20 minutos de intervalo, o Stremio Stats reconhece-os, deixa-os fora das contas
-  por data e mostra-os como "sem data certa".
-- Os géneros, realizadores, atores, países, notas e durações vêm do **Cinemeta**, o catálogo oficial do Stremio,
-  que às vezes tem erros (por exemplo, no ano de estreia).
-- Só conta filmes; as séries ficam de fora.
+- **Stremio only keeps the last time you watched each movie.** The month, day and time charts use that date: a
+  movie watched in 2021 and reopened in 2023 counts in 2023.
+- **Movies marked as watched all at once** (or imported) get the date of that moment. Since nobody finishes two
+  movies less than 20 minutes apart, Stremio Stats recognises them, leaves them out of the date-based charts and
+  lists them as "no reliable date".
+- Genres, directors, actors, countries, ratings and runtimes come from **Cinemeta**, Stremio's official catalogue,
+  which sometimes has mistakes (release years, for example).
+- Only movies are counted; series are left out.
 
----
+## For developers
 
-## In English
+It runs on a **Cloudflare Worker**, with no frameworks and no client-side dependencies: plain HTML, CSS and
+JavaScript. (The code and its comments are in Portuguese.)
 
-**Stremio Stats** shows statistics about every movie you've watched on [Stremio](https://www.stremio.com):
-how many, hours watched, genres, release decades, directors, actors, countries, favourite days and times,
-IMDb ratings, rewatches and unfinished movies — in a web dashboard and, as an add-on, inside Stremio itself
-(a "My statistics" row of stat cards and a "Movies I've watched" row). Available in English, Portuguese,
-French, Spanish and Italian. Try it at **[stremiostats.stream](https://stremiostats.stream)** or see the
-[example](https://stremiostats.stream/?exemplo&lang=en).
-
-Sign-in uses Stremio's own device-link code (or email/password sent straight to Stremio). Your library is read
-from Stremio's API and enriched with Cinemeta; nothing is stored server-side.
-
----
-
-## Para quem quer mexer no código
-
-Corre num **Cloudflare Worker**, sem frameworks nem dependências no navegador: HTML, CSS e JavaScript simples.
-
-| Ficheiro | O que faz |
+| File | What it does |
 |---|---|
-| `src/worker.js` | A extensão do Stremio (manifesto, filas, cartões em SVG) e o servidor do painel |
-| `public/index.html`, `painel.js`, `estilo.css` | O painel |
-| `public/estatisticas.js` | As contas — partilhado pelo painel e pelo Worker |
-| `public/textos.js` | Todos os textos nas cinco línguas — partilhado pelo painel e pelo Worker |
-| `src/demo.json` | Biblioteca de exemplo (filmes reais, datas inventadas); refaz-se com `bun run demo` |
+| `src/worker.js` | The Stremio add-on (manifest, catalogs, SVG stat cards) and the dashboard server |
+| `public/index.html`, `painel.js`, `estilo.css` | The dashboard |
+| `public/estatisticas.js` | The statistics — shared by the dashboard and the Worker |
+| `public/textos.js` | Every piece of text in the five languages — shared by the dashboard and the Worker |
+| `src/demo.json` | Example library (real movies, made-up dates); regenerate it with `bun run demo` |
 
-**Pôr uma cópia a funcionar** (precisa de [Bun](https://bun.sh) e de uma conta Cloudflare):
+**Running your own copy** (needs [Bun](https://bun.sh) and a Cloudflare account):
 
 ```bash
 bun install
-echo "SEGREDO=$(openssl rand -base64 32)" > .dev.vars   # chave para cifrar os links de instalação
-bun run dev                                           # http://localhost:8010 (o exemplo está em /?exemplo)
+echo "SEGREDO=$(openssl rand -base64 32)" > .dev.vars   # key used to encrypt install links
+bun run dev                                           # http://localhost:8010 (the example is at /?exemplo)
 ```
 
-Para publicar: `bunx wrangler secret put SEGREDO` (uma vez) e `bun run deploy`. Mudar o `SEGREDO` invalida os
-links de instalação que já existam. O domínio está em `wrangler.toml`.
+To publish: `bunx wrangler secret put SEGREDO` (once) and `bun run deploy`. Changing `SEGREDO` invalidates any
+existing install links. The custom domain is set in `wrangler.toml`.
 
-**Endereços da extensão:** `/<cfg>/manifest.json`, `/<cfg>/catalog/movie/…`, `/<cfg>/meta/movie/mvest:….json`,
-`/<cfg>/configure` (painel). `<cfg>` é a chave cifrada, ou `demo` / `demo-en` / `demo-fr`… para o exemplo.
+**Add-on routes:** `/<cfg>/manifest.json`, `/<cfg>/catalog/movie/…`, `/<cfg>/meta/movie/mvest:….json`,
+`/<cfg>/configure` (dashboard). `<cfg>` is the encrypted key, or `demo` / `demo-en` / `demo-fr`… for the example.
 
 ---
 
-*Projeto independente, sem ligação ao Stremio. "Stremio" é uma marca dos seus donos.*
+*Independent project, not affiliated with Stremio. "Stremio" is a trademark of its owners.*
