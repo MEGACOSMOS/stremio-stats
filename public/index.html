@@ -166,6 +166,18 @@
 
   <div id="dica" role="tooltip" hidden></div>
 
+  <!-- Todos os filmes de uma barra de um gráfico -->
+  <dialog id="janela-filmes" class="pagina" aria-labelledby="pagina-titulo">
+    <div class="pagina-topo">
+      <button class="botao fantasma" id="pagina-voltar" type="button"><span aria-hidden="true">←</span> <span data-t="voltar">Voltar</span></button>
+      <div>
+        <h2 id="pagina-titulo"></h2>
+        <p id="pagina-sub" class="mudo"></p>
+      </div>
+    </div>
+    <div class="filmes" id="pagina-filmes"></div>
+  </dialog>
+
   <dialog id="janela-instalar">
     <h2 data-t="janela_titulo">Instalar no Stremio</h2>
     <p data-t="janela_texto_html">A extensão junta à página inicial do Stremio duas filas: <strong>As minhas estatísticas</strong> e

@@ -302,4 +302,22 @@ dialog .acoes { justify-content: flex-start; margin: 20px 0 8px; }
 .link-copiar input { flex: 1; font-size: 0.8rem; color: var(--tinta-2); }
 .cuidado { font-size: 0.85rem; color: var(--aviso); }
 
+/* Barras que abrem a página com os seus filmes */
+.colunas .barra.clicavel, .linhas .linha.clicavel { cursor: pointer; }
+#dica em { display: block; margin-top: 4px; font-style: normal; opacity: 0.75; }
+
+/* Página com os filmes de uma barra */
+dialog.pagina {
+  max-width: none; width: 100%; height: 100%; max-height: none; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: var(--fundo); box-shadow: none; overflow-y: auto;
+}
+dialog.pagina::backdrop { background: var(--fundo); }
+.pagina-topo {
+  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  max-width: 1180px; margin: 0 auto; padding: 20px 16px 16px; background: var(--fundo);
+}
+.pagina-topo h2 { font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 800; margin: 0; }
+.pagina-topo p { margin: 2px 0 0; }
+dialog.pagina .filmes { max-width: 1180px; margin: 0 auto; padding: 8px 16px 48px; }
+
 footer { text-align: center; color: var(--tinta-3); font-size: 0.8rem; padding: 0 16px 32px; }

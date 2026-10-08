@@ -25,7 +25,7 @@ and at what times you watch.
 - **The full list of your movies**, with posters, search, filters by genre and by the year you watched them,
   several sort orders, and a button to **download everything as an Excel file**.
 
-Every chart has hover tooltips (listing the movies) and a table view.
+Every chart has hover tooltips (listing the movies) and a table view, and **clicking any bar opens a page with all of its movies** — every movie from March 2025, every drama, every Christopher Nolan film, everything you watched on Fridays…
 
 ![Charts for genres, decades, days, times of day, directors, actors and countries](docs/charts.jpg)
 

@@ -58,6 +58,7 @@ function aplicarTextos() {
 }
 
 seletor.addEventListener('change', () => {
+  if (janelaFilmes.open) fecharPagina();
   t = textos(seletor.value);
   guardado.escrever(CHAVE_LINGUA, t.lingua);
   aplicarTextos();
@@ -306,14 +307,35 @@ function escala(max) {
   return { passo, topo: Math.ceil(max / passo) * passo };
 }
 
-const listaNomes = (nomes, max = 5) => (nomes.length
-  ? `<br>${esc(nomes.slice(0, max).join(', '))}${nomes.length > max ? esc(t.e_mais(nomes.length - max)) : ''}`
-  : '');
+// Nomes de alguns filmes para a dica, e o convite a clicar.
+function detalheDica(valor, filmesDaBarra = [], max = 5) {
+  const nomes = filmesDaBarra.map((f) => f.nome);
+  return `${esc(t.filmes(valor))}${nomes.length
+    ? `<br>${esc(nomes.slice(0, max).join(', '))}${nomes.length > max ? esc(t.e_mais(nomes.length - max)) : ''}
+       <br><em>${esc(t.dica_clicar)}</em>`
+    : ''}`;
+}
 
 const semDados = () => `<p class="mudo pequeno">${esc(t.sem_dados)}</p>`;
 
-// dados: [{ x, valor, titulo, nomes? }]
-function colunas(alvo, dados, cabecalho) {
+// Barras com filmes são botões: clicar (ou Enter/Espaço) abre a página com
+// todos os filmes dessa barra.
+const atributosMarca = (d) => (d.filmes?.length ? 'role="button" tabindex="0"' : 'role="img" tabindex="0"');
+
+function ligarCliques(alvo, seletorMarca, dados, contexto) {
+  for (const el of alvo.querySelectorAll(seletorMarca)) {
+    const d = dados[Number(el.dataset.i)];
+    if (!d.filmes?.length) continue;
+    const abrir = () => { dica.hidden = true; abrirPagina(d.titulo, contexto, d.filmes); };
+    el.addEventListener('click', abrir);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); }
+    });
+  }
+}
+
+// dados: [{ x, valor, titulo, filmes? }]
+function colunas(alvo, dados, cabecalho, contexto) {
   const max = Math.max(0, ...dados.map((d) => d.valor));
   const { passo, topo } = escala(max);
   const marcas = [];
@@ -324,29 +346,66 @@ function colunas(alvo, dados, cabecalho) {
     <div class="eixo-y" aria-hidden="true">${marcas.map((v) => `<span style="bottom:${pct(v)}">${t.numero(v)}</span>`).join('')}</div>
     <div class="area">
       ${marcas.slice(1).map((v) => `<div class="guia" style="bottom:${pct(v)}"></div>`).join('')}
-      <div class="barras">${dados.map((d, i) => `<div class="barra" tabindex="0" role="img" data-i="${i}"
+      <div class="barras">${dados.map((d, i) => `<div ${atributosMarca(d)} class="barra${d.filmes?.length ? ' clicavel' : ''}" data-i="${i}"
         aria-label="${esc(`${d.titulo}: ${t.filmes(d.valor)}`)}"><i style="height:${pct(d.valor)}"></i>${
         i === iMax && max > 0 ? `<b style="bottom:${pct(max)}">${t.numero(max)}</b>` : ''}</div>`).join('')}</div>
     </div>
     <div class="eixo-x" aria-hidden="true">${dados.map((d) => `<span>${esc(d.x)}</span>`).join('')}</div>
   </div>${tabela(cabecalho, dados.map((d) => [d.titulo, t.numero(d.valor)]))}`;
-  ligarDicas(alvo, '.barra', (i) => ({ titulo: dados[i].titulo, detalhe: `${esc(t.filmes(dados[i].valor))}${listaNomes(dados[i].nomes || [])}` }));
+  ligarDicas(alvo, '.barra', (i) => ({ titulo: dados[i].titulo, detalhe: detalheDica(dados[i].valor, dados[i].filmes) }));
+  ligarCliques(alvo, '.barra', dados, contexto);
 }
 
-// dados: [{ nome, valor, nomes? }]
-function linhas(alvo, dados, cabecalho) {
+// dados: [{ nome, valor, filmes? }]
+function linhas(alvo, dados, cabecalho, contexto) {
   if (!dados.length) {
     alvo.innerHTML = semDados();
     return;
   }
   const max = Math.max(1, ...dados.map((d) => d.valor));
-  alvo.innerHTML = `<div class="linhas">${dados.map((d, i) => `<div class="linha" tabindex="0" data-i="${i}"
+  for (const d of dados) d.titulo = d.nome;
+  alvo.innerHTML = `<div class="linhas">${dados.map((d, i) => `<div ${atributosMarca(d)} class="linha${d.filmes?.length ? ' clicavel' : ''}" data-i="${i}"
       aria-label="${esc(`${d.nome}: ${t.filmes(d.valor)}`)}">
       <span class="nome">${esc(d.nome)}</span>
       <span class="pista"><i style="width:calc(${d.valor / max} * (100% - 3em))"></i><b>${t.numero(d.valor)}</b></span>
     </div>`).join('')}</div>${tabela(cabecalho, dados.map((d) => [d.nome, t.numero(d.valor)]))}`;
-  ligarDicas(alvo, '.linha', (i) => ({ titulo: dados[i].nome, detalhe: `${esc(t.filmes(dados[i].valor))}${listaNomes(dados[i].nomes || [])}` }));
+  ligarDicas(alvo, '.linha', (i) => ({ titulo: dados[i].nome, detalhe: detalheDica(dados[i].valor, dados[i].filmes) }));
+  ligarCliques(alvo, '.linha', dados, contexto);
 }
+
+// ——— A página com os filmes de uma barra ———
+
+const janelaFilmes = $('#janela-filmes');
+let paginaNoHistorico = false;
+
+function abrirPagina(titulo, contexto, filmesDaBarra) {
+  const ordenados = [...filmesDaBarra].sort(maisRecente);
+  $('#pagina-titulo').textContent = titulo.charAt(0).toUpperCase() + titulo.slice(1);
+  $('#pagina-sub').textContent = `${contexto} · ${t.filmes(ordenados.length)}`;
+  $('#pagina-filmes').innerHTML = ordenados.map(cartaoFilme).join('');
+  if (!janelaFilmes.open) {
+    janelaFilmes.showModal();
+    // O botão "anterior" do navegador (ou do telemóvel) fecha a página.
+    history.pushState({ pagina: true }, '', '#filmes');
+    paginaNoHistorico = true;
+  }
+  janelaFilmes.scrollTop = 0;
+  $('#pagina-voltar').focus();
+}
+
+function fecharPagina() {
+  if (paginaNoHistorico) {
+    paginaNoHistorico = false;
+    history.back(); // o popstate fecha a janela
+  } else if (janelaFilmes.open) janelaFilmes.close();
+}
+
+$('#pagina-voltar').addEventListener('click', fecharPagina);
+janelaFilmes.addEventListener('cancel', (e) => { e.preventDefault(); fecharPagina(); }); // tecla Esc
+addEventListener('popstate', () => {
+  paginaNoHistorico = false;
+  if (janelaFilmes.open) janelaFilmes.close();
+});
 
 // ——— Desenhar o painel ———
 
@@ -383,18 +442,18 @@ function desenhar(r, vistos, porAcabar) {
     <div class="nota">${esc(nota)}</div></div>`).join('');
 
   // Ao longo do tempo
-  const nomesPor = (chave) => {
+  const filmesPor = (chave) => {
     const m = new Map();
     for (const f of vistos) {
       if (!f.quando) continue;
       const k = chave(partes(f.quando, FUSO));
       if (!m.has(k)) m.set(k, []);
-      m.get(k).push(f.nome);
+      m.get(k).push(f);
     }
     return m;
   };
-  const porMesNomes = nomesPor((p) => `${p.ano}-${String(p.mes).padStart(2, '0')}`);
-  const porAnoNomes = nomesPor((p) => p.ano);
+  const porMesFilmes = filmesPor((p) => `${p.ano}-${String(p.mes).padStart(2, '0')}`);
+  const porAnoFilmes = filmesPor((p) => p.ano);
   const agora = partes(Date.now(), FUSO);
   const tempo = {
     mes: () => {
@@ -406,16 +465,16 @@ function desenhar(r, vistos, porAcabar) {
         const k = `${ano}-${String(mes).padStart(2, '0')}`;
         dados.push({
           x: mes === 1 ? String(ano) : mes % 3 === 1 ? t.mesesCurtos[mes - 1] : '',
-          valor: r.porMes.get(k) || 0, titulo: t.mesAno(k), nomes: porMesNomes.get(k) || [],
+          valor: r.porMes.get(k) || 0, titulo: t.mesAno(k), filmes: porMesFilmes.get(k) || [],
         });
       }
-      colunas($('#g-tempo'), dados, [t.col_mes, t.col_filmes]);
+      colunas($('#g-tempo'), dados, [t.col_mes, t.col_filmes], t.g_tempo);
     },
     ano: () => {
       const anos = [...r.porAno.keys()];
       const dados = [];
-      if (anos.length) for (let a = anos[0]; a <= agora.ano; a++) dados.push({ x: String(a), valor: r.porAno.get(a) || 0, titulo: String(a), nomes: porAnoNomes.get(a) || [] });
-      colunas($('#g-tempo'), dados, [t.col_ano, t.col_filmes]);
+      if (anos.length) for (let a = anos[0]; a <= agora.ano; a++) dados.push({ x: String(a), valor: r.porAno.get(a) || 0, titulo: String(a), filmes: porAnoFilmes.get(a) || [] });
+      colunas($('#g-tempo'), dados, [t.col_ano, t.col_filmes], t.g_tempo);
     },
   };
   for (const b of document.querySelectorAll('[data-tempo]')) {
@@ -427,40 +486,40 @@ function desenhar(r, vistos, porAcabar) {
   tempo[document.querySelector('[data-tempo][aria-pressed="true"]').dataset.tempo]();
 
   // Géneros e décadas
-  const nomesDe = (campo) => {
+  const filmesDe = (campo) => {
     const m = new Map();
-    for (const f of vistos) for (const v of f[campo] || []) { if (!m.has(v)) m.set(v, []); m.get(v).push(f.nome); }
+    for (const f of vistos) for (const v of f[campo] || []) { if (!m.has(v)) m.set(v, []); m.get(v).push(f); }
     return m;
   };
-  const porGenero = nomesDe('generos');
-  linhas($('#g-generos'), r.generos.slice(0, 10).map(([g, n]) => ({ nome: t.genero(g), valor: n, nomes: porGenero.get(g) })), [t.col_genero, t.col_filmes]);
+  const porGenero = filmesDe('generos');
+  linhas($('#g-generos'), r.generos.slice(0, 10).map(([g, n]) => ({ nome: t.genero(g), valor: n, filmes: porGenero.get(g) })), [t.col_genero, t.col_filmes], t.g_generos);
   const porDecada = new Map();
-  for (const f of vistos) if (f.ano) { const d = Math.floor(f.ano / 10) * 10; if (!porDecada.has(d)) porDecada.set(d, []); porDecada.get(d).push(f.nome); }
+  for (const f of vistos) if (f.ano) { const d = Math.floor(f.ano / 10) * 10; if (!porDecada.has(d)) porDecada.set(d, []); porDecada.get(d).push(f); }
   if (r.decadas.length) {
     const dados = [];
     for (let d = r.decadas[0][0]; d <= r.decadas[r.decadas.length - 1][0]; d += 10) {
-      dados.push({ x: String(d), valor: porDecada.get(d)?.length || 0, titulo: t.decada(d), nomes: porDecada.get(d) || [] });
+      dados.push({ x: String(d), valor: porDecada.get(d)?.length || 0, titulo: t.decada(d), filmes: porDecada.get(d) || [] });
     }
-    colunas($('#g-decadas'), dados, [t.col_decada, t.col_filmes]);
+    colunas($('#g-decadas'), dados, [t.col_decada, t.col_filmes], t.g_decadas);
   } else $('#g-decadas').innerHTML = semDados();
 
   // Dias e horas
-  const porDiaNomes = nomesPor((p) => p.semana);
-  colunas($('#g-dias'), t.diasCurtos.map((d, i) => ({ x: d, valor: r.porSemana[i], titulo: t.dias[i], nomes: porDiaNomes.get(i) || [] })), [t.col_dia, t.col_filmes]);
+  const porDiaFilmes = filmesPor((p) => p.semana);
+  colunas($('#g-dias'), t.diasCurtos.map((d, i) => ({ x: d, valor: r.porSemana[i], titulo: t.dias[i], filmes: porDiaFilmes.get(i) || [] })), [t.col_dia, t.col_filmes], t.g_dias);
   const avisoData = r.semData ? t.sem_data_aviso(t.filmes(r.semData), r.semData) : '';
   $('#t-tempo').textContent = t.sub_tempo + avisoData;
   $('#t-dias').textContent = (r.ultimos.length ? t.ves_mais(t.noDia(r.diaFavorito)) : '') + avisoData;
-  const porHoraNomes = nomesPor((p) => p.hora);
-  colunas($('#g-horas'), r.porHora.map((n, h) => ({ x: h % 3 === 0 ? t.hora(h) : '', valor: n, titulo: t.das_as(h, (h + 1) % 24), nomes: porHoraNomes.get(h) || [] })), [t.col_hora, t.col_filmes]);
+  const porHoraFilmes = filmesPor((p) => p.hora);
+  colunas($('#g-horas'), r.porHora.map((n, h) => ({ x: h % 3 === 0 ? t.hora(h) : '', valor: n, titulo: t.das_as(h, (h + 1) % 24), filmes: porHoraFilmes.get(h) || [] })), [t.col_hora, t.col_filmes], t.g_horas);
   $('#t-horas').textContent = (r.ultimos.length ? t.sub_horas(t.periodo(r.horaFavorita)) : '') + avisoData;
 
   // Realizadores, atores, países
-  const porRealizador = nomesDe('realizadores');
-  const porAtor = nomesDe('elenco');
-  const porPais = nomesDe('paises');
-  linhas($('#g-realizadores'), r.realizadores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, nomes: porRealizador.get(n) })), [t.col_realizador, t.col_filmes]);
-  linhas($('#g-atores'), r.atores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, nomes: porAtor.get(n) })), [t.col_ator, t.col_filmes]);
-  linhas($('#g-paises'), r.paises.slice(0, 8).map(([n, v]) => ({ nome: t.pais(n), valor: v, nomes: porPais.get(n) })), [t.col_pais, t.col_filmes]);
+  const porRealizador = filmesDe('realizadores');
+  const porAtor = filmesDe('elenco');
+  const porPais = filmesDe('paises');
+  linhas($('#g-realizadores'), r.realizadores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, filmes: porRealizador.get(n) })), [t.col_realizador, t.col_filmes], t.g_realizadores);
+  linhas($('#g-atores'), r.atores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, filmes: porAtor.get(n) })), [t.col_ator, t.col_filmes], t.g_atores);
+  linhas($('#g-paises'), r.paises.slice(0, 8).map(([n, v]) => ({ nome: t.pais(n), valor: v, filmes: porPais.get(n) })), [t.col_pais, t.col_filmes], t.g_paises);
 
   // Destaques
   const maisRevisto = r.maisRevistos[0];
@@ -533,13 +592,19 @@ function desenharLista() {
       && (!q || semAcentos([f.nome, ...f.realizadores, ...f.elenco].join(' ')).includes(q)))
     .sort(ORDENAR[$('#ordem').value] || ORDENAR.recentes);
   const total = lista.vistos.length;
-  const dataCurta = (ms) => { const p = partes(ms, FUSO); return `${p.dia} ${t.mesesCurtos[p.mes - 1]} ${p.ano}`; };
   $('#t-lista').textContent = escolhidos.length === total ? t.filmes(total) : t.n_de_total(t.filmes(escolhidos.length), t.numero(total));
-  $('#lista').innerHTML = escolhidos.slice(0, lista.mostrados).map((f) => `<a class="filme" href="${linkStremio(f.id)}" title="${esc(t.abrir_stremio)}">
-      ${capa(f)}<span class="titulo">${esc(f.nome)}</span>
-      <span class="det">${[f.ano, f.nota && `★ ${t.decimal(f.nota)}`, f.quando ? dataCurta(f.quando) : t.sem_data].filter(Boolean).map(esc).join(' · ')}</span></a>`).join('')
+  $('#lista').innerHTML = escolhidos.slice(0, lista.mostrados).map(cartaoFilme).join('')
     || `<p class="mudo">${esc(t.nenhum)}</p>`;
   $('#ver-mais').hidden = escolhidos.length <= lista.mostrados;
+}
+
+// Capa, título, ano · nota · quando o viste. Usado na lista e na página de uma barra.
+function cartaoFilme(f) {
+  const p = f.quando ? partes(f.quando, FUSO) : null;
+  const quando = p ? `${p.dia} ${t.mesesCurtos[p.mes - 1]} ${p.ano}` : t.sem_data;
+  return `<a class="filme" href="${linkStremio(f.id)}" title="${esc(t.abrir_stremio)}">
+      ${capa(f)}<span class="titulo">${esc(f.nome)}</span>
+      <span class="det">${[f.ano, f.nota && `★ ${t.decimal(f.nota)}`, quando].filter(Boolean).map(esc).join(' · ')}</span></a>`;
 }
 
 $('#procurar').addEventListener('input', () => { lista.mostrados = 60; desenharLista(); });
