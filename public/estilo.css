@@ -87,6 +87,7 @@ h2 { font-size: 1.05rem; font-weight: 650; }
   flex-wrap: wrap;
 }
 .marca { display: flex; align-items: center; gap: 10px; font-weight: 700; margin-right: auto; }
+select.lingua { border-radius: 999px; padding: 8px 14px; background: var(--cartao); font-size: 0.9rem; cursor: pointer; }
 .marca img { width: 32px; height: 32px; }
 .botao {
   appearance: none;

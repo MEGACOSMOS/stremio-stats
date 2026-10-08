@@ -3,7 +3,7 @@
 // O Stremio não diz às extensões quem é o utilizador, por isso o link de
 // instalação leva consigo a chave de sessão do Stremio, cifrada com o SEGREDO
 // deste Worker: quem visse o link não ficava com acesso à conta, só às
-// estatísticas.
+// estatísticas. Leva também o fuso horário e a língua escolhida no painel.
 //
 //   /manifest.json                       extensão por configurar
 //   /<cfg>/manifest.json                 extensão de uma pessoa
@@ -11,20 +11,17 @@
 //   /<cfg>/meta/movie/mvest:<cartão>.json
 //   /<cfg>/biblioteca.json               filmes da biblioteca, para o painel
 //   /<cfg>/configure                     o painel (botão "Configurar" do Stremio)
-//   /api/ligar                           cria o <cfg> a partir da chave de sessão
+//   /api/ligar                           cria o <cfg> (a partir da chave de sessão ou de outro <cfg>)
 //   /cartao.svg                          capa dos cartões de estatísticas
 //
-// <cfg> = "demo" usa a biblioteca de exemplo em src/demo.json.
+// <cfg> = "demo" (ou "demo-en", "demo-fr"…) usa a biblioteca de exemplo em src/demo.json.
 
 import DEMO from './demo.json';
-import {
-  lerBiblioteca, resumoBase, maisAntigo, partes as partesData, DIAS, aoDia, MESES_CURTOS, mesAno, feitio, numero, horasDe, vezes,
-  filmes, fundoDe,
-} from '../public/estatisticas.js';
+import { lerBiblioteca, resumoBase, maisAntigo, maisRecente, partes as partesData, horasDe, fundoDe } from '../public/estatisticas.js';
+import { textos, linguaDe, LINGUAS } from '../public/textos.js';
 
-const VERSAO = '1.0.0';
+const VERSAO = '1.1.0';
 const PREFIXO = 'mvest:';
-const ORDENS = ['Mais recentes', 'Mais antigos', 'Mais revistos', 'De A a Z'];
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -58,16 +55,22 @@ export default {
   },
 };
 
+const linguaDoPedido = (pedido) => linguaDe((pedido.headers.get('Accept-Language') || '').split(','));
+
 async function encaminhar(pedido, env, url, partes) {
   const origem = url.origin;
-  if (partes[0] === 'manifest.json') return json(manifesto(origem, null));
+  if (partes[0] === 'manifest.json') return json(manifesto(origem, null, textos(linguaDoPedido(pedido))));
   if (partes[0] === 'cartao.svg') return cartaoSvg(url.searchParams);
   if (partes[0] === 'configure') return painel(env, origem);
   if (partes[0] === 'api' && partes[1] === 'ligar' && pedido.method === 'POST') {
-    const { authKey, fuso } = await pedido.json().catch(() => ({}));
-    if (typeof authKey !== 'string' || !authKey) return json({ erro: 'pedido' }, { estado: 400 });
-    await biblioteca(authKey); // confirma que a sessão é válida antes de dar um link
-    return json({ cfg: await cifrar(env, { k: authKey, f: fuso }) });
+    const { authKey, cfg: outro, fuso, lingua } = await pedido.json().catch(() => ({}));
+    // Mudar a língua de um link que já existe (painel aberto a partir do Stremio).
+    const antigo = typeof outro === 'string' ? await lerCfg(env, outro) : null;
+    const chaveSessao = typeof authKey === 'string' && authKey ? authKey : antigo?.k;
+    if (!chaveSessao) return json({ erro: 'pedido' }, { estado: 400 });
+    await biblioteca(chaveSessao); // confirma que a sessão é válida antes de dar um link
+    const dados = { k: chaveSessao, f: fuso || antigo?.f, l: lingua in LINGUAS ? lingua : antigo?.l };
+    return json({ cfg: await cifrar(env, dados) });
   }
 
   if (partes.length < 2) return new Response('Não encontrado', { status: 404, headers: CORS });
@@ -75,8 +78,9 @@ async function encaminhar(pedido, env, url, partes) {
   const cfg = await lerCfg(env, cfgTexto);
   if (!cfg) return json({ erro: 'link' }, { estado: 404 });
   const base = `${origem}/${encodeURIComponent(cfgTexto)}`;
+  const t = textos(cfg.l || 'pt');
 
-  if (recurso === 'manifest.json') return json(manifesto(origem, cfgTexto), { cache: 3600 });
+  if (recurso === 'manifest.json') return json(manifesto(origem, cfg, t), { cache: 3600 });
   if (recurso === 'configure') return painel(env, origem);
 
   let itens;
@@ -84,13 +88,13 @@ async function encaminhar(pedido, env, url, partes) {
     itens = cfg.demo ? DEMO : await biblioteca(cfg.k);
   } catch (erro) {
     if (!(erro instanceof SessaoInvalida)) throw erro;
-    if (recurso === 'catalog') return json({ metas: [cartaoSessao(origem, base)], cacheMaxAge: 60 });
-    if (recurso === 'meta') return json({ meta: cartaoSessao(origem, base) });
+    if (recurso === 'catalog') return json({ metas: [cartaoSessao(origem, t)], cacheMaxAge: 60 });
+    if (recurso === 'meta') return json({ meta: cartaoSessao(origem, t) });
     throw erro;
   }
 
   if (recurso === 'biblioteca.json') {
-    return json({ itens: itens.filter((i) => i && i.type === 'movie'), demo: !!cfg.demo });
+    return json({ itens: itens.filter((i) => i && i.type === 'movie'), demo: !!cfg.demo, lingua: cfg.l || null });
   }
 
   const { vistos } = lerBiblioteca(itens);
@@ -102,10 +106,10 @@ async function encaminhar(pedido, env, url, partes) {
     const extra = Object.fromEntries(new URLSearchParams((extraTexto || '').replace(/\.json$/, '')));
     const catId = id.replace(/\.json$/, '');
     if (catId === 'mv-estatisticas') {
-      return json({ metas: cartoes(vistos, fuso, origem, base).map(previa), cacheMaxAge: 300 });
+      return json({ metas: cartoes(vistos, fuso, origem, base, t).map(previa), cacheMaxAge: 300 });
     }
     if (catId === 'mv-vistos') {
-      const lista = ordenar(vistos, extra.genre);
+      const lista = ordenar(vistos, extra.genre, t);
       const salto = Math.max(0, parseInt(extra.skip, 10) || 0);
       return json({
         metas: lista.slice(salto, salto + 100).map((f) => ({
@@ -119,7 +123,7 @@ async function encaminhar(pedido, env, url, partes) {
 
   if (recurso === 'meta') {
     const id = (partes[3] || '').replace(/\.json$/, '');
-    const cartao = cartoes(vistos, fuso, origem, base).find((c) => c.id === id);
+    const cartao = cartoes(vistos, fuso, origem, base, t).find((c) => c.id === id);
     return cartao ? json({ meta: cartao, cacheMaxAge: 300 }) : json({ meta: null }, { estado: 404 });
   }
 
@@ -128,13 +132,12 @@ async function encaminhar(pedido, env, url, partes) {
 
 // ——— Stremio ———
 
-function manifesto(origem, cfg) {
+function manifesto(origem, cfg, t) {
   const m = {
     id: 'community.estatisticas.filmes',
     version: VERSAO,
-    name: 'Estatísticas dos meus filmes',
-    description: 'Quantos filmes já viste no Stremio, quantas horas, os géneros, realizadores, dias e horas '
-      + 'favoritos, e a lista de todos eles. Abre "Configurar" para ver o painel completo.',
+    name: t.ext_nome,
+    description: t.ext_descricao,
     logo: `${origem}/logo.svg`,
     background: `${origem}/fundo.svg`,
     types: ['movie'],
@@ -145,125 +148,129 @@ function manifesto(origem, cfg) {
   };
   if (cfg) {
     m.catalogs = [
-      { type: 'movie', id: 'mv-estatisticas', name: 'As minhas estatísticas' },
+      { type: 'movie', id: 'mv-estatisticas', name: t.cat_estatisticas },
       {
-        type: 'movie', id: 'mv-vistos', name: 'Filmes que já vi',
-        extra: [{ name: 'genre', options: ORDENS, isRequired: false }, { name: 'skip', isRequired: false }],
+        type: 'movie', id: 'mv-vistos', name: t.cat_vistos,
+        extra: [{ name: 'genre', options: t.ordens, isRequired: false }, { name: 'skip', isRequired: false }],
         extraSupported: ['genre', 'skip'],
       },
     ];
-    if (cfg === 'demo') m.name += ' (exemplo)';
+    if (cfg.demo) m.name += t.ext_exemplo;
   }
   return m;
 }
 
-function ordenar(vistos, ordem) {
+// O Stremio devolve o texto da opção escolhida em "Descobrir".
+function ordenar(vistos, ordem, t) {
   const lista = [...vistos];
-  if (ordem === 'Mais antigos') return lista.sort(maisAntigo);
-  if (ordem === 'Mais revistos') return lista.sort((a, b) => b.vezes - a.vezes || (b.quando || 0) - (a.quando || 0));
-  if (ordem === 'De A a Z') return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+  const qual = t.ordens.indexOf(ordem);
+  if (qual === 1) return lista.sort(maisAntigo);
+  if (qual === 2) return lista.sort((a, b) => b.vezes - a.vezes || maisRecente(a, b));
+  if (qual === 3) return lista.sort((a, b) => a.nome.localeCompare(b.nome, t.local));
   return lista; // já vêm do mais recente para o mais antigo
 }
 
 const previa = ({ id, type, name, poster, posterShape, description }) => ({ id, type, name, poster, posterShape, description });
 
-const dataCurta = (ms, fuso) => new Date(ms).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: fuso });
-const linhas = (itens) => itens.map((t) => `• ${t}`).join('\n');
+const linhas = (itens) => itens.map((x) => `• ${x}`).join('\n');
 const barra = (n, max) => '█'.repeat(Math.max(n ? 1 : 0, Math.round((n / (max || 1)) * 12)));
+const maiuscula = (x) => x.charAt(0).toUpperCase() + x.slice(1);
 
 // Os "filmes" falsos que aparecem na fila "As minhas estatísticas".
-function cartoes(vistos, fuso, origem, base) {
+function cartoes(vistos, fuso, origem, base, t) {
   const r = resumoBase(vistos, { fuso });
   const painelUrl = `${base}/configure`;
   const fundo = r.ultimos[0]?.id?.startsWith('tt') ? fundoDe(r.ultimos[0].id) : `${origem}/fundo.svg`;
+  const data = (ms) => t.dataLonga(ms, fuso);
   const lista = [];
   const cartao = (chave, rotulo, valor, sub, nome, descricao) => {
     const capa = new URL(`${origem}/cartao.svg`);
-    capa.search = new URLSearchParams({ r: rotulo, v: valor, s: sub, c: String(lista.length) }).toString();
+    capa.search = new URLSearchParams({ r: rotulo, v: valor, s: sub, c: String(lista.length), m: t.marca_cartao }).toString();
     lista.push({
       id: PREFIXO + chave, type: 'movie', name: nome, poster: capa.toString(), posterShape: 'poster',
       background: fundo, description: descricao, releaseInfo: rotulo,
-      links: [{ name: 'Abrir o painel completo', category: 'Estatísticas', url: painelUrl }],
+      links: [{ name: t.link_painel, category: t.link_categoria, url: painelUrl }],
       behaviorHints: { defaultVideoId: null },
     });
   };
 
   if (!r.total) {
-    cartao('vazio', 'Ainda nada', '0', 'filmes vistos', 'Ainda não viste filmes',
-      'Assim que acabares de ver um filme no Stremio (ou o marcares como visto), ele aparece aqui.');
+    const [rotulo, sub, nome, desc] = t.c_vazio;
+    cartao('vazio', rotulo, '0', sub, nome, desc);
     return lista;
   }
 
-  const desde = r.desde ? dataCurta(r.desde, fuso) : null;
   const inicio = r.desde ? partesData(r.desde, fuso) : null;
-  cartao('total', 'Filmes vistos', numero(r.total), inicio ? `desde ${MESES_CURTOS[inicio.mes - 1]} ${inicio.ano}` : 'no Stremio',
-    `${filmes(r.total)} vistos`,
-    `Já viste ${filmes(r.total)} no Stremio${desde ? ` desde ${desde}` : ''}.`
-    + (r.revistos ? ` ${r.revistos === 1 ? 'Um deles viste' : `${r.revistos} deles viste`} mais do que uma vez — ao todo foram ${numero(r.vezesTotal)} sessões de cinema.` : '')
-    + '\n\nNo painel completo há géneros, décadas, realizadores, atores, países e notas do IMDb.');
+  cartao('total', t.c_total_rotulo, t.numero(r.total),
+    inicio ? t.c_total_desde(t.mesesCurtos[inicio.mes - 1], inicio.ano) : t.c_total_sem_data,
+    t.c_total_nome(t.filmes(r.total)),
+    t.c_total_desc(t.filmes(r.total), r.desde ? data(r.desde) : null)
+    + (r.revistos ? t.c_total_revistos(r.revistos, t.numero(r.vezesTotal)) : '')
+    + `\n\n${t.c_total_painel}`);
 
   const horas = horasDe(r.tempoReal);
   if (horas > 0) {
     const dias = r.tempoReal / 864e5;
-    cartao('horas', 'Horas a ver filmes', `${numero(horas)} h`, dias >= 1 ? `${numero(dias)} ${Math.round(dias) === 1 ? 'dia' : 'dias'} seguidos` : 'de cinema',
-      `${numero(horas)} horas de filmes`,
-      `Passaste ${numero(horas)} horas a ver filmes no Stremio — ${dias >= 1 ? `o mesmo que ${numero(dias)} dias seguidos, sem dormir.` : 'e a contar.'}`
-      + '\n\nConta o tempo que o filme esteve mesmo a dar. Filmes marcados como vistos à mão não entram nesta conta.');
+    cartao('horas', t.c_horas_rotulo, `${t.numero(horas)} h`,
+      dias >= 1 ? t.c_horas_dias(t.numero(dias), Math.round(dias) === 1) : t.c_horas_sub,
+      t.c_horas_nome(t.numero(horas)),
+      `${t.c_horas_desc(t.numero(horas), dias >= 1 ? t.numero(dias) : null)}\n\n${t.c_horas_nota}`);
   }
 
-  cartao('ano', `Em ${r.anoAtual}`, numero(r.esteAno), r.esteAno === 1 ? 'filme este ano' : 'filmes este ano',
-    `${filmes(r.esteAno)} em ${r.anoAtual}`,
+  cartao('ano', t.t_ano(r.anoAtual), t.numero(r.esteAno), t.c_ano_sub(r.esteAno),
+    t.c_ano_nome(t.filmes(r.esteAno), r.anoAtual),
     r.esteAno
-      ? `Este ano já viste ${filmes(r.esteAno)}:\n${linhas(r.vistosEsteAno.slice(0, 25).map((f) => f.nome))}${r.esteAno > 25 ? `\n…e mais ${r.esteAno - 25}.` : ''}`
-      : `Ainda não viste nenhum filme em ${r.anoAtual}.`);
+      ? `${t.c_ano_desc(t.filmes(r.esteAno))}\n${linhas(r.vistosEsteAno.slice(0, 25).map((f) => f.nome))}${r.esteAno > 25 ? `\n${t.c_ano_mais(r.esteAno - 25)}` : ''}`
+      : t.c_ano_nenhum(r.anoAtual));
 
-  const semData = r.semData ? `\n\n${filmes(r.semData)} não ${r.semData === 1 ? 'entra' : 'entram'} nesta conta: ${r.semData === 1 ? 'foi marcado' : 'foram marcados'} como ${r.semData === 1 ? 'visto' : 'vistos'} de uma vez, por isso o Stremio não sabe quando os viste.` : '';
+  const semData = r.semData ? `\n\n${t.c_sem_data(t.filmes(r.semData), r.semData)}` : '';
   const ultimo = r.ultimos[0];
-  if (ultimo) cartao('ultimo', 'O último que viste', ultimo.nome, ultimo.quando ? dataCurta(ultimo.quando, fuso) : '',
-    `Último: ${ultimo.nome}`,
-    `Os últimos filmes que viste:\n${linhas(r.ultimos.map((f) => `${f.nome}${f.quando ? ` — ${dataCurta(f.quando, fuso)}` : ''}`))}`);
+  if (ultimo) {
+    cartao('ultimo', t.c_ultimo_rotulo, ultimo.nome, ultimo.quando ? data(ultimo.quando) : '',
+      t.c_ultimo_nome(ultimo.nome),
+      `${t.c_ultimo_desc}\n${linhas(r.ultimos.map((f) => `${f.nome}${f.quando ? ` — ${data(f.quando)}` : ''}`))}`);
+  }
 
   if (r.maisRevistos.length) {
     const top = r.maisRevistos[0];
-    cartao('revisto', 'O que mais revisto', top.nome, `visto ${vezes(top.vezes)}`,
-      `Mais revisto: ${top.nome}`,
-      `Os filmes a que mais voltaste:\n${linhas(r.maisRevistos.map((f) => `${f.nome} — ${vezes(f.vezes)}`))}`);
+    cartao('revisto', t.c_revisto_rotulo, top.nome, t.visto_vezes(t.vezes(top.vezes)),
+      t.c_revisto_nome(top.nome),
+      `${t.c_revisto_desc}\n${linhas(r.maisRevistos.map((f) => `${f.nome} — ${t.vezes(f.vezes)}`))}`);
   }
 
-  const maxDia = Math.max(...r.porSemana);
-  const dia = DIAS[r.diaFavorito][0].toUpperCase() + DIAS[r.diaFavorito].slice(1);
-  cartao('dia', 'Dia favorito', dia, filmes(maxDia),
-    `Dia favorito: ${dia}`,
-    `É ${aoDia(r.diaFavorito)} que vês mais filmes.\n${linhas(DIAS.map((d, i) => `${d}: ${barra(r.porSemana[i], maxDia)} ${r.porSemana[i]}`))}`
-    + '\n\n(Conta o último dia em que viste cada filme.)' + semData);
+  if (r.ultimos.length) {
+    const maxDia = Math.max(...r.porSemana);
+    const dia = maiuscula(t.dias[r.diaFavorito]);
+    cartao('dia', t.c_dia_rotulo, dia, t.filmes(maxDia), t.c_dia_nome(t.dias[r.diaFavorito]),
+      `${t.c_dia_desc(t.noDia(r.diaFavorito))}\n${linhas(t.dias.map((d, i) => `${d}: ${barra(r.porSemana[i], maxDia)} ${r.porSemana[i]}`))}`
+      + `\n\n${t.c_dia_nota}${semData}`);
 
-  const h = r.horaFavorita;
-  const periodos = [['de manhã', 5, 12], ['à tarde', 12, 19], ['à noite', 19, 24], ['de madrugada', 0, 5]]
-    .map(([nome, de, ate]) => [nome, r.porHora.slice(de, ate).reduce((a, b) => a + b, 0)]);
-  const maxPeriodo = Math.max(...periodos.map((p) => p[1]));
-  cartao('hora', 'Hora favorita', `${h}h`, `costumas ver ${feitio(h)}`,
-    `Hora favorita: ${h}h`,
-    `A hora a que mais acabas filmes é às ${h}h.\n${linhas(periodos.map(([nome, n]) => `${nome}: ${barra(n, maxPeriodo)} ${n}`))}${semData}`);
+    const h = r.horaFavorita;
+    const periodos = [[5, 12], [12, 19], [19, 24], [0, 5]]
+      .map(([de, ate], i) => [t.periodos[i], r.porHora.slice(de, ate).reduce((a, b) => a + b, 0)]);
+    const maxPeriodo = Math.max(...periodos.map((p) => p[1]));
+    cartao('hora', t.c_hora_rotulo, t.hora(h), t.c_hora_sub(t.periodo(h)), t.c_hora_nome(h),
+      `${t.c_hora_desc(h)}\n${linhas(periodos.map(([nome, n]) => `${nome}: ${barra(n, maxPeriodo)} ${n}`))}${semData}`);
+  }
 
   if (r.melhorMes) {
     const meses = [...r.porMes].sort((a, b) => b[1] - a[1]).slice(0, 5);
-    cartao('mes', 'O teu melhor mês', mesAno(r.melhorMes[0], true), filmes(r.melhorMes[1]),
-      `Melhor mês: ${mesAno(r.melhorMes[0])}`,
-      `Os meses em que viste mais filmes:\n${linhas(meses.map(([m, n]) => `${mesAno(m)} — ${filmes(n)}`))}${semData}`);
+    cartao('mes', t.c_mes_rotulo, t.mesAno(r.melhorMes[0], true), t.filmes(r.melhorMes[1]),
+      t.c_mes_nome(t.mesAno(r.melhorMes[0])),
+      `${t.c_mes_desc}\n${linhas(meses.map(([m, n]) => `${t.mesAno(m)} — ${t.filmes(n)}`))}${semData}`);
   }
 
-  cartao('painel', 'Quero ver mais', 'Painel completo', 'géneros, realizadores…',
-    'Abrir o painel completo',
-    'Géneros, décadas, realizadores, atores, países, notas do IMDb, os mais longos e os mais curtos, e a lista de todos os filmes que viste.\n\nCarrega em "Abrir o painel completo" (ou no botão "Configurar" da extensão).');
+  const [rotulo, valor, sub, nome, desc] = t.c_painel;
+  cartao('painel', rotulo, valor, sub, nome, desc);
   return lista;
 }
 
-function cartaoSessao(origem, base) {
-  const capa = `${origem}/cartao.svg?${new URLSearchParams({ r: 'É preciso voltar a ligar', v: 'Sessão terminada', s: 'abre o painel', c: '0' })}`;
+function cartaoSessao(origem, t) {
+  const [rotulo, valor, sub, nome, desc, link] = t.c_sessao;
+  const capa = `${origem}/cartao.svg?${new URLSearchParams({ r: rotulo, v: valor, s: sub, c: '0', m: t.marca_cartao })}`;
   return {
-    id: `${PREFIXO}sessao`, type: 'movie', name: 'Volta a ligar a tua conta', poster: capa, posterShape: 'poster',
-    description: 'A ligação ao teu Stremio deixou de funcionar (por exemplo, porque saíste da conta em todos os aparelhos). Abre o painel, entra outra vez e reinstala a extensão.',
-    links: [{ name: 'Abrir o painel', category: 'Estatísticas', url: `${origem}/` }],
+    id: `${PREFIXO}sessao`, type: 'movie', name: nome, poster: capa, posterShape: 'poster', description: desc,
+    links: [{ name: link, category: t.link_categoria, url: `${origem}/` }],
   };
 }
 
@@ -272,7 +279,7 @@ function cartaoSessao(origem, base) {
 const CORES = [['#5b3fd1', '#1b1035'], ['#c2410c', '#2a1208'], ['#0f766e', '#071f1d'], ['#a21caf', '#26082a'],
   ['#1d4ed8', '#0a1633'], ['#b45309', '#271605'], ['#be123c', '#2a0711'], ['#4d7c0f', '#121d05'], ['#6d28d9', '#170b2e']];
 
-const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escapar = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Parte um texto em linhas de até `largura` caracteres.
 function partir(texto, largura, maxLinhas) {
@@ -294,6 +301,7 @@ function cartaoSvg(q) {
   const rotulo = (q.get('r') || '').slice(0, 40);
   const valor = (q.get('v') || '').slice(0, 60);
   const sub = (q.get('s') || '').slice(0, 40);
+  const marca = (q.get('m') || 'ESTATÍSTICAS').slice(0, 20);
   const [cor, escuro] = CORES[(parseInt(q.get('c'), 10) || 0) % CORES.length];
   // Números grandes; nomes de filmes em várias linhas, mais pequenos.
   const curto = valor.length <= 7;
@@ -311,7 +319,7 @@ function cartaoSvg(q) {
 ${partir(rotulo, 24, 2).map((l, i) => `<text x="32" y="${82 + i * 25}" class="r">${escapar(l)}</text>`).join('')}
 ${texto}
 ${partir(sub, 24, 2).map((l, i) => `<text x="32" y="${360 + i * 25}" class="s">${escapar(l)}</text>`).join('')}
-<text x="32" y="420" class="m">ESTATÍSTICAS</text>
+<text x="32" y="420" class="m">${escapar(marca)}</text>
 </svg>`;
   return new Response(svg, {
     headers: { ...CORS, 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' },
@@ -363,7 +371,8 @@ async function cifrar(env, dados) {
 }
 
 async function lerCfg(env, texto) {
-  if (texto === 'demo') return { demo: true, f: 'Europe/Lisbon' };
+  const demo = /^demo(?:-([a-z]{2}))?$/.exec(texto);
+  if (demo) return { demo: true, f: 'Europe/Lisbon', l: linguaDe(demo[1] || 'pt') };
   if (!/^[A-Za-z0-9_-]{40,}$/.test(texto)) return null;
   try {
     const tudo = deBase64(texto);

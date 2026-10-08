@@ -1,10 +1,8 @@
 // O painel: entrar na conta do Stremio, ler a biblioteca, ir buscar os
 // detalhes de cada filme ao Cinemeta e desenhar as estatísticas.
 
-import {
-  lerBiblioteca, resumoCompleto, maisRecente, maisAntigo, resumirMeta, partes, genero, pais, feitio,
-  MESES, MESES_CURTOS, DIAS, DIAS_CURTOS, aoDia, numero, horasDe, mesAno, vezes, filmes,
-} from '/estatisticas.js';
+import { lerBiblioteca, resumoCompleto, maisRecente, maisAntigo, resumirMeta, partes, horasDe } from '/estatisticas.js';
+import { textos, linguaDe, LINGUAS } from '/textos.js';
 
 const $ = (s) => document.querySelector(s);
 const FUSO = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon';
@@ -13,6 +11,7 @@ const LINK = 'https://link.stremio.com/api/v2/';
 const CINEMETA = 'https://v3-cinemeta.strem.io/meta/movie/';
 const CHAVE_SESSAO = 'mv-sessao';
 const CHAVE_METAS = 'mv-metas-v1';
+const CHAVE_LINGUA = 'mv-lingua';
 
 const guardado = {
   ler(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -20,18 +19,52 @@ const guardado = {
   apagar(k) { try { localStorage.removeItem(k); } catch { /* idem */ } },
 };
 
-const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
-const decimal = (n) => n.toLocaleString('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const duracao = (min) => (min >= 60 ? `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}min` : `${min} min`);
-const dataCurta = (ms) => { const p = partes(ms, FUSO); return `${p.dia} ${MESES_CURTOS[p.mes - 1]} ${p.ano}`; };
-const decada = (d) => (d >= 1920 && d < 2000 ? `anos ${d % 100}` : `anos ${d}`);
-const semAcentos = (t) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const semAcentos = (x) => x.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 // /<cfg>/configure é o que o Stremio abre no botão "Configurar" da extensão.
 const caminho = location.pathname.split('/').filter(Boolean);
-const cfgDoStremio = caminho.length === 2 && caminho[1] === 'configure' && caminho[0] !== 'demo' ? caminho[0] : null;
-const pedeExemplo = caminho[0] === 'demo' || new URLSearchParams(location.search).has('exemplo');
+const eDemo = (x) => /^demo(-[a-z]{2})?$/.test(x || '');
+const cfgDoStremio = caminho.length === 2 && caminho[1] === 'configure' && !eDemo(caminho[0]) ? caminho[0] : null;
+const parametros = new URLSearchParams(location.search);
+const pedeExemplo = eDemo(caminho[0]) || parametros.has('exemplo');
+
+// ——— Língua ———
+
+const linguaEscolhida = parametros.get('lang') || guardado.ler(CHAVE_LINGUA);
+let t = textos(linguaDe(linguaEscolhida, navigator.languages || [], navigator.language));
+
+const seletor = $('#lingua');
+seletor.innerHTML = Object.entries(LINGUAS).map(([codigo, nome]) => `<option value="${codigo}" lang="${codigo}">${nome}</option>`).join('');
+
+let ultimoErro = null;
+let ultimoDesenho = null;
+
+function aplicarTextos() {
+  document.documentElement.lang = t.local;
+  document.title = t.titulo;
+  document.querySelector('meta[name="description"]').content = t.descricao_pagina;
+  seletor.value = t.lingua;
+  for (const el of document.querySelectorAll('[data-t]')) {
+    const chave = el.dataset.t;
+    if (chave.endsWith('_html')) el.innerHTML = t[chave];
+    else el.textContent = t[chave];
+  }
+  for (const el of document.querySelectorAll('[data-t-ph]')) el.placeholder = t[el.dataset.tPh];
+  for (const el of document.querySelectorAll('[data-t-aria]')) el.setAttribute('aria-label', t[el.dataset.tAria]);
+  if (ultimoErro) erroEntrada(ultimoErro);
+}
+
+seletor.addEventListener('change', () => {
+  t = textos(seletor.value);
+  guardado.escrever(CHAVE_LINGUA, t.lingua);
+  aplicarTextos();
+  if (ultimoDesenho) desenhar(...ultimoDesenho);
+});
+
+// ——— Vistas ———
 
 let estado = { modo: null, sessao: null, cfg: null };
 
@@ -42,14 +75,17 @@ function mostrar(vista) {
   if (vista === 'entrada') {
     $('#caixa-entrar').hidden = false;
     $('#caixa-codigo').hidden = true;
+    ultimoDesenho = null;
   }
   window.scrollTo(0, 0);
 }
 
-function erroEntrada(texto) {
+// Guarda a chave do erro para o voltar a escrever se a língua mudar.
+function erroEntrada(chave) {
+  ultimoErro = chave || null;
   const el = $('#erro-entrada');
-  el.textContent = texto || '';
-  el.hidden = !texto;
+  el.textContent = chave ? t[chave] : '';
+  el.hidden = !chave;
 }
 
 function progresso(fracao, texto, detalhe) {
@@ -79,7 +115,7 @@ async function stremio(metodo, corpo) {
 let cancelarLink = null;
 
 async function entrarComLink() {
-  erroEntrada('');
+  erroEntrada(null);
   const botao = $('#entrar-link');
   botao.disabled = true;
   let codigo;
@@ -88,7 +124,7 @@ async function entrarComLink() {
     codigo = r.result;
     if (!codigo?.code) throw new Error('sem código');
   } catch {
-    erroEntrada('Não foi possível falar com o Stremio. Verifica a ligação à Internet e tenta outra vez.');
+    erroEntrada('erro_ligacao');
     return;
   } finally {
     botao.disabled = false;
@@ -113,13 +149,13 @@ async function entrarComLink() {
   }
   if (!cancelado) {
     mostrar('entrada');
-    erroEntrada('O código expirou antes de ser confirmado. Carrega outra vez em “Entrar” para receberes um novo.');
+    erroEntrada('erro_codigo');
   }
 }
 
 async function entrarComPalavraPasse(evento) {
   evento.preventDefault();
-  erroEntrada('');
+  erroEntrada(null);
   const form = evento.target;
   const botao = form.querySelector('button');
   botao.disabled = true;
@@ -130,9 +166,7 @@ async function entrarComPalavraPasse(evento) {
     form.reset();
     await entrou(r.authKey, r.user);
   } catch (e) {
-    erroEntrada(e.doStremio
-      ? 'O Stremio não aceitou esse email e palavra-passe. Se entras no Stremio com o Facebook, a Google ou a Apple, usa o botão “Entrar com a minha conta do Stremio”.'
-      : 'Não foi possível falar com o Stremio. Verifica a ligação à Internet e tenta outra vez.');
+    erroEntrada(e.doStremio ? 'erro_senha' : 'erro_ligacao');
   } finally {
     botao.disabled = false;
   }
@@ -151,7 +185,7 @@ async function entrou(authKey, utilizador) {
 
 async function carregarConta() {
   mostrar('carregar');
-  progresso(0.02, 'A ler o teu histórico do Stremio…');
+  progresso(0.02, t.a_ler);
   let itens;
   try {
     itens = await stremio('datastoreGet', { authKey: estado.sessao.authKey, collection: 'libraryItem', ids: [], all: true });
@@ -160,10 +194,10 @@ async function carregarConta() {
       guardado.apagar(CHAVE_SESSAO);
       estado = { modo: null, sessao: null, cfg: null };
       mostrar('entrada');
-      erroEntrada('A tua sessão do Stremio terminou. Entra outra vez.');
+      erroEntrada('erro_sessao');
     } else {
       mostrar('entrada');
-      erroEntrada('Não foi possível falar com o Stremio. Verifica a ligação à Internet e recarrega a página.');
+      erroEntrada('erro_recarregar');
     }
     return;
   }
@@ -173,19 +207,22 @@ async function carregarConta() {
 // A biblioteca vem do servidor da extensão (exemplo, ou aberto a partir do Stremio).
 async function carregarDoServidor(cfg) {
   mostrar('carregar');
-  progresso(0.02, cfg === 'demo' ? 'A preparar o exemplo…' : 'A ler o teu histórico do Stremio…');
+  progresso(0.02, eDemo(cfg) ? t.a_preparar : t.a_ler);
   try {
     const r = await fetch(`/${encodeURIComponent(cfg)}/biblioteca.json`);
     if (!r.ok) throw Object.assign(new Error(String(r.status)), { estado: r.status });
-    const { itens } = await r.json();
+    const { itens, lingua } = await r.json();
+    // Aberto a partir do Stremio sem língua escolhida neste navegador: a da extensão.
+    if (lingua && !linguaEscolhida && !eDemo(cfg) && lingua !== t.lingua) {
+      t = textos(lingua);
+      aplicarTextos();
+    }
     await construir(itens);
   } catch (e) {
     estado = { modo: null, sessao: null, cfg: null };
     history.replaceState(null, '', '/');
     mostrar('entrada');
-    erroEntrada(e.estado === 401 || e.estado === 404
-      ? 'A ligação da extensão ao teu Stremio já não funciona. Entra outra vez e volta a instalar a extensão.'
-      : 'Não foi possível ler o histórico. Verifica a ligação à Internet e recarrega a página.');
+    erroEntrada(e.estado === 401 || e.estado === 404 ? 'erro_link' : 'erro_historico');
   }
 }
 
@@ -196,7 +233,7 @@ async function detalhes(ids) {
   const fila = [...new Set(ids)].filter((id) => !(id in cache));
   const total = fila.length;
   let feitos = 0;
-  if (total) progresso(0.05, `A juntar os detalhes de ${filmes(total)}…`, `0 de ${numero(total)}`);
+  if (total) progresso(0.05, t.a_juntar(t.filmes(total)), t.x_de_y(0, t.numero(total)));
   async function trabalhador() {
     while (fila.length) {
       const id = fila.shift();
@@ -206,7 +243,7 @@ async function detalhes(ids) {
         else if (r.status === 404) cache[id] = {};
       } catch { /* fica para a próxima visita */ }
       feitos += 1;
-      progresso(0.05 + 0.93 * (feitos / total), null, `${numero(feitos)} de ${numero(total)}`);
+      progresso(0.05 + 0.93 * (feitos / total), null, t.x_de_y(t.numero(feitos), t.numero(total)));
       if (feitos % 100 === 0) guardado.escrever(CHAVE_METAS, cache);
     }
   }
@@ -223,14 +260,15 @@ async function construir(itens) {
   progresso(1);
   desenhar(r, vistos, porAcabar);
   mostrar('painel');
+  ultimoDesenho = [r, vistos, porAcabar];
 }
 
 // ——— Gráficos ———
 
 const dica = $('#dica');
 
-function ligarDicas(alvo, seletor, conteudo) {
-  for (const el of alvo.querySelectorAll(seletor)) {
+function ligarDicas(alvo, seletorMarca, conteudo) {
+  for (const el of alvo.querySelectorAll(seletorMarca)) {
     const abrir = () => {
       const d = conteudo(Number(el.dataset.i));
       dica.innerHTML = `<strong>${esc(d.titulo)}</strong>${d.detalhe || ''}`;
@@ -253,7 +291,7 @@ function ligarDicas(alvo, seletor, conteudo) {
 addEventListener('scroll', () => { dica.hidden = true; }, { passive: true });
 
 function tabela(cabecalho, linhas) {
-  return `<details class="tabela"><summary>Ver em tabela</summary><div class="tabela-rolar"><table>
+  return `<details class="tabela"><summary>${esc(t.ver_tabela)}</summary><div class="tabela-rolar"><table>
     <thead><tr>${cabecalho.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
     <tbody>${linhas.map((l) => `<tr>${l.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
   </table></div></details>`;
@@ -269,8 +307,10 @@ function escala(max) {
 }
 
 const listaNomes = (nomes, max = 5) => (nomes.length
-  ? `<br>${esc(nomes.slice(0, max).join(', '))}${nomes.length > max ? ` e mais ${nomes.length - max}` : ''}`
+  ? `<br>${esc(nomes.slice(0, max).join(', '))}${nomes.length > max ? esc(t.e_mais(nomes.length - max)) : ''}`
   : '');
+
+const semDados = () => `<p class="mudo pequeno">${esc(t.sem_dados)}</p>`;
 
 // dados: [{ x, valor, titulo, nomes? }]
 function colunas(alvo, dados, cabecalho) {
@@ -281,31 +321,31 @@ function colunas(alvo, dados, cabecalho) {
   const iMax = dados.findIndex((d) => d.valor === max);
   const pct = (v) => `${(v / topo) * 100}%`;
   alvo.innerHTML = `<div class="colunas">
-    <div class="eixo-y" aria-hidden="true">${marcas.map((v) => `<span style="bottom:${pct(v)}">${numero(v)}</span>`).join('')}</div>
+    <div class="eixo-y" aria-hidden="true">${marcas.map((v) => `<span style="bottom:${pct(v)}">${t.numero(v)}</span>`).join('')}</div>
     <div class="area">
       ${marcas.slice(1).map((v) => `<div class="guia" style="bottom:${pct(v)}"></div>`).join('')}
       <div class="barras">${dados.map((d, i) => `<div class="barra" tabindex="0" role="img" data-i="${i}"
-        aria-label="${esc(`${d.titulo}: ${filmes(d.valor)}`)}"><i style="height:${pct(d.valor)}"></i>${
-        i === iMax && max > 0 ? `<b style="bottom:${pct(max)}">${numero(max)}</b>` : ''}</div>`).join('')}</div>
+        aria-label="${esc(`${d.titulo}: ${t.filmes(d.valor)}`)}"><i style="height:${pct(d.valor)}"></i>${
+        i === iMax && max > 0 ? `<b style="bottom:${pct(max)}">${t.numero(max)}</b>` : ''}</div>`).join('')}</div>
     </div>
     <div class="eixo-x" aria-hidden="true">${dados.map((d) => `<span>${esc(d.x)}</span>`).join('')}</div>
-  </div>${tabela(cabecalho, dados.map((d) => [d.titulo, numero(d.valor)]))}`;
-  ligarDicas(alvo, '.barra', (i) => ({ titulo: dados[i].titulo, detalhe: `${filmes(dados[i].valor)}${listaNomes(dados[i].nomes || [])}` }));
+  </div>${tabela(cabecalho, dados.map((d) => [d.titulo, t.numero(d.valor)]))}`;
+  ligarDicas(alvo, '.barra', (i) => ({ titulo: dados[i].titulo, detalhe: `${esc(t.filmes(dados[i].valor))}${listaNomes(dados[i].nomes || [])}` }));
 }
 
 // dados: [{ nome, valor, nomes? }]
-function linhas(alvo, dados, cabecalho, unidade = filmes) {
+function linhas(alvo, dados, cabecalho) {
   if (!dados.length) {
-    alvo.innerHTML = '<p class="mudo pequeno">Sem dados suficientes.</p>';
+    alvo.innerHTML = semDados();
     return;
   }
   const max = Math.max(1, ...dados.map((d) => d.valor));
   alvo.innerHTML = `<div class="linhas">${dados.map((d, i) => `<div class="linha" tabindex="0" data-i="${i}"
-      aria-label="${esc(`${d.nome}: ${unidade(d.valor)}`)}">
+      aria-label="${esc(`${d.nome}: ${t.filmes(d.valor)}`)}">
       <span class="nome">${esc(d.nome)}</span>
-      <span class="pista"><i style="width:calc(${d.valor / max} * (100% - 3em))"></i><b>${numero(d.valor)}</b></span>
-    </div>`).join('')}</div>${tabela(cabecalho, dados.map((d) => [d.nome, numero(d.valor)]))}`;
-  ligarDicas(alvo, '.linha', (i) => ({ titulo: dados[i].nome, detalhe: `${unidade(dados[i].valor)}${listaNomes(dados[i].nomes || [])}` }));
+      <span class="pista"><i style="width:calc(${d.valor / max} * (100% - 3em))"></i><b>${t.numero(d.valor)}</b></span>
+    </div>`).join('')}</div>${tabela(cabecalho, dados.map((d) => [d.nome, t.numero(d.valor)]))}`;
+  ligarDicas(alvo, '.linha', (i) => ({ titulo: dados[i].nome, detalhe: `${esc(t.filmes(dados[i].valor))}${listaNomes(dados[i].nomes || [])}` }));
 }
 
 // ——— Desenhar o painel ———
@@ -313,30 +353,30 @@ function linhas(alvo, dados, cabecalho, unidade = filmes) {
 let lista = { vistos: [], mostrados: 60 };
 
 function desenhar(r, vistos, porAcabar) {
-  const demo = estado.modo === 'demo';
-  $('#aviso-demo').hidden = !demo;
+  $('#aviso-demo').hidden = estado.modo !== 'demo';
 
   // O número grande
-  $('#ola').textContent = estado.sessao?.nome ? `Olá, ${estado.sessao.nome}! Já viste` : 'Já viste';
-  $('#total').innerHTML = `${numero(r.total)}<small>${r.total === 1 ? 'filme' : 'filmes'}</small>`;
+  $('#ola').textContent = estado.sessao?.nome ? t.ola(estado.sessao.nome) : t.ja_viste;
+  $('#total').innerHTML = `${t.numero(r.total)}<small>${esc(t.filme_palavra(r.total))}</small>`;
   const horasCinema = Math.round(r.minutosVistos / 60);
   const inicio = r.desde ? partes(r.desde, FUSO) : null;
   $('#frase').textContent = r.total
-    ? [inicio && `desde ${MESES[inicio.mes - 1]} de ${inicio.ano}`, horasCinema && `${numero(horasCinema)} horas de cinema`,
-      r.notaMedia && `nota média ${decimal(r.notaMedia)} no IMDb`].filter(Boolean).join(' · ')
-    : 'Ainda não há filmes vistos na tua conta. Quando acabares um filme no Stremio (ou o marcares como visto), ele aparece aqui.';
+    ? [inicio && t.desde(t.meses[inicio.mes - 1], inicio.ano), horasCinema && t.horas_cinema(t.numero(horasCinema)),
+      r.notaMedia && t.nota_media_frase(t.decimal(r.notaMedia))].filter(Boolean).join(' · ')
+    : t.sem_filmes;
 
   // Os quadradinhos
   const anoPassado = r.porAno.get(r.anoAtual - 1) || 0;
+  const decadaFavorita = r.decadas.length ? [...r.decadas].sort((a, b) => b[1] - a[1])[0] : null;
   const tiles = [
-    ['Horas de cinema', numero(horasCinema), horasCinema >= 24 ? `≈ ${numero(horasCinema / 24)} dias seguidos` : 'a duração dos filmes que viste'],
-    ['Tempo a dar no Stremio', `${numero(horasDe(r.tempoReal))} h`, 'o tempo em que o filme esteve mesmo a dar'],
-    [`Em ${r.anoAtual}`, numero(r.esteAno), `${filmes(anoPassado)} em ${r.anoAtual - 1}`],
-    ['Revistos', numero(r.revistos), 'filmes que viste mais de uma vez'],
-    r.notaMedia && ['Nota média no IMDb', decimal(r.notaMedia), 'dos filmes que viste'],
-    r.generos[0] && ['Género favorito', genero(r.generos[0][0]), filmes(r.generos[0][1]), true],
-    r.decadas.length && (() => { const d = [...r.decadas].sort((a, b) => b[1] - a[1])[0]; return ['Década favorita', decada(d[0]), filmes(d[1]), true]; })(),
-    r.realizadores[0] && ['Realizador favorito', r.realizadores[0][0], filmes(r.realizadores[0][1]), true],
+    [t.t_horas, t.numero(horasCinema), horasCinema >= 24 ? t.t_dias_seguidos(t.numero(horasCinema / 24)) : t.t_duracao],
+    [t.t_tempo, `${t.numero(horasDe(r.tempoReal))} h`, t.t_tempo_nota],
+    [t.t_ano(r.anoAtual), t.numero(r.esteAno), t.t_ano_nota(t.filmes(anoPassado), r.anoAtual - 1)],
+    [t.t_revistos, t.numero(r.revistos), t.t_revistos_nota],
+    r.notaMedia && [t.t_nota, t.decimal(r.notaMedia), t.t_nota_nota],
+    r.generos[0] && [t.t_genero, t.genero(r.generos[0][0]), t.filmes(r.generos[0][1]), true],
+    decadaFavorita && [t.t_decada, t.decada(decadaFavorita[0]), t.filmes(decadaFavorita[1]), true],
+    r.realizadores[0] && [t.t_realizador, r.realizadores[0][0], t.filmes(r.realizadores[0][1]), true],
   ].filter(Boolean);
   $('#mosaico').innerHTML = tiles.map(([rotulo, valor, nota, texto]) => `<div class="tile">
     <div class="rotulo">${esc(rotulo)}</div><div class="valor${texto ? ' texto' : ''}">${esc(valor)}</div>
@@ -365,17 +405,17 @@ function desenhar(r, vistos, porAcabar) {
         const mes = (total % 12) + 1;
         const k = `${ano}-${String(mes).padStart(2, '0')}`;
         dados.push({
-          x: mes === 1 ? String(ano) : mes % 3 === 1 ? MESES_CURTOS[mes - 1] : '',
-          valor: r.porMes.get(k) || 0, titulo: mesAno(k), nomes: porMesNomes.get(k) || [],
+          x: mes === 1 ? String(ano) : mes % 3 === 1 ? t.mesesCurtos[mes - 1] : '',
+          valor: r.porMes.get(k) || 0, titulo: t.mesAno(k), nomes: porMesNomes.get(k) || [],
         });
       }
-      colunas($('#g-tempo'), dados, ['Mês', 'Filmes']);
+      colunas($('#g-tempo'), dados, [t.col_mes, t.col_filmes]);
     },
     ano: () => {
       const anos = [...r.porAno.keys()];
       const dados = [];
       if (anos.length) for (let a = anos[0]; a <= agora.ano; a++) dados.push({ x: String(a), valor: r.porAno.get(a) || 0, titulo: String(a), nomes: porAnoNomes.get(a) || [] });
-      colunas($('#g-tempo'), dados, ['Ano', 'Filmes']);
+      colunas($('#g-tempo'), dados, [t.col_ano, t.col_filmes]);
     },
   };
   for (const b of document.querySelectorAll('[data-tempo]')) {
@@ -393,67 +433,74 @@ function desenhar(r, vistos, porAcabar) {
     return m;
   };
   const porGenero = nomesDe('generos');
-  linhas($('#g-generos'), r.generos.slice(0, 10).map(([g, n]) => ({ nome: genero(g), valor: n, nomes: porGenero.get(g) })), ['Género', 'Filmes']);
+  linhas($('#g-generos'), r.generos.slice(0, 10).map(([g, n]) => ({ nome: t.genero(g), valor: n, nomes: porGenero.get(g) })), [t.col_genero, t.col_filmes]);
   const porDecada = new Map();
   for (const f of vistos) if (f.ano) { const d = Math.floor(f.ano / 10) * 10; if (!porDecada.has(d)) porDecada.set(d, []); porDecada.get(d).push(f.nome); }
   if (r.decadas.length) {
     const dados = [];
     for (let d = r.decadas[0][0]; d <= r.decadas[r.decadas.length - 1][0]; d += 10) {
-      dados.push({ x: String(d), valor: porDecada.get(d)?.length || 0, titulo: decada(d), nomes: porDecada.get(d) || [] });
+      dados.push({ x: String(d), valor: porDecada.get(d)?.length || 0, titulo: t.decada(d), nomes: porDecada.get(d) || [] });
     }
-    colunas($('#g-decadas'), dados, ['Década', 'Filmes']);
-  } else $('#g-decadas').innerHTML = '<p class="mudo pequeno">Sem dados suficientes.</p>';
+    colunas($('#g-decadas'), dados, [t.col_decada, t.col_filmes]);
+  } else $('#g-decadas').innerHTML = semDados();
 
   // Dias e horas
   const porDiaNomes = nomesPor((p) => p.semana);
-  colunas($('#g-dias'), DIAS_CURTOS.map((d, i) => ({ x: d, valor: r.porSemana[i], titulo: DIAS[i], nomes: porDiaNomes.get(i) || [] })), ['Dia', 'Filmes']);
-  const avisoData = r.semData
-    ? ` ${filmes(r.semData)} não ${r.semData === 1 ? 'entra' : 'entram'} aqui: ${r.semData === 1 ? 'foi marcado' : 'foram marcados'} como ${r.semData === 1 ? 'visto' : 'vistos'} de uma vez (ou importados), por isso o Stremio não sabe quando os viste.`
-    : '';
-  $('#t-tempo').textContent = `Pela última vez que viste cada filme — o Stremio só guarda essa data.${avisoData}`;
-  $('#t-dias').textContent = (r.total ? `Vês mais filmes ${aoDia(r.diaFavorito)}.` : '') + avisoData;
+  colunas($('#g-dias'), t.diasCurtos.map((d, i) => ({ x: d, valor: r.porSemana[i], titulo: t.dias[i], nomes: porDiaNomes.get(i) || [] })), [t.col_dia, t.col_filmes]);
+  const avisoData = r.semData ? t.sem_data_aviso(t.filmes(r.semData), r.semData) : '';
+  $('#t-tempo').textContent = t.sub_tempo + avisoData;
+  $('#t-dias').textContent = (r.ultimos.length ? t.ves_mais(t.noDia(r.diaFavorito)) : '') + avisoData;
   const porHoraNomes = nomesPor((p) => p.hora);
-  colunas($('#g-horas'), r.porHora.map((n, h) => ({ x: h % 3 === 0 ? `${h}h` : '', valor: n, titulo: `Das ${h}h às ${(h + 1) % 24}h`, nomes: porHoraNomes.get(h) || [] })), ['Hora', 'Filmes']);
-  $('#t-horas').textContent = (r.total ? `A que horas acabas os filmes — costumas ver ${feitio(r.horaFavorita)}.` : '') + avisoData;
+  colunas($('#g-horas'), r.porHora.map((n, h) => ({ x: h % 3 === 0 ? t.hora(h) : '', valor: n, titulo: t.das_as(h, (h + 1) % 24), nomes: porHoraNomes.get(h) || [] })), [t.col_hora, t.col_filmes]);
+  $('#t-horas').textContent = (r.ultimos.length ? t.sub_horas(t.periodo(r.horaFavorita)) : '') + avisoData;
 
   // Realizadores, atores, países
   const porRealizador = nomesDe('realizadores');
   const porAtor = nomesDe('elenco');
   const porPais = nomesDe('paises');
-  linhas($('#g-realizadores'), r.realizadores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, nomes: porRealizador.get(n) })), ['Realizador', 'Filmes']);
-  linhas($('#g-atores'), r.atores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, nomes: porAtor.get(n) })), ['Ator', 'Filmes']);
-  linhas($('#g-paises'), r.paises.slice(0, 8).map(([n, v]) => ({ nome: pais(n), valor: v, nomes: porPais.get(n) })), ['País', 'Filmes']);
+  linhas($('#g-realizadores'), r.realizadores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, nomes: porRealizador.get(n) })), [t.col_realizador, t.col_filmes]);
+  linhas($('#g-atores'), r.atores.slice(0, 8).map(([n, v]) => ({ nome: n, valor: v, nomes: porAtor.get(n) })), [t.col_ator, t.col_filmes]);
+  linhas($('#g-paises'), r.paises.slice(0, 8).map(([n, v]) => ({ nome: t.pais(n), valor: v, nomes: porPais.get(n) })), [t.col_pais, t.col_filmes]);
 
   // Destaques
   const maisRevisto = r.maisRevistos[0];
   const destaques = [
-    r.melhores[0] && ['Melhor nota', r.melhores[0], `★ ${decimal(r.melhores[0].nota)} no IMDb`],
-    r.piores[0] && r.piores[0] !== r.melhores[0] && ['Pior nota', r.piores[0], `★ ${decimal(r.piores[0].nota)} no IMDb`],
-    r.maisLongo && ['O mais longo', r.maisLongo, duracao(r.maisLongo.minutos)],
-    r.maisCurto && r.maisCurto !== r.maisLongo && ['O mais curto', r.maisCurto, duracao(r.maisCurto.minutos)],
-    r.maisAntigo && ['O mais antigo', r.maisAntigo, `estreou em ${r.maisAntigo.ano}`],
-    maisRevisto && ['O que mais revisto', maisRevisto, `visto ${vezes(maisRevisto.vezes)}`],
+    r.melhores[0] && [t.d_melhor, r.melhores[0], t.no_imdb(t.decimal(r.melhores[0].nota))],
+    r.piores[0] && r.piores[0] !== r.melhores[0] && [t.d_pior, r.piores[0], t.no_imdb(t.decimal(r.piores[0].nota))],
+    r.maisLongo && [t.d_longo, r.maisLongo, duracao(r.maisLongo.minutos)],
+    r.maisCurto && r.maisCurto !== r.maisLongo && [t.d_curto, r.maisCurto, duracao(r.maisCurto.minutos)],
+    r.maisAntigo && [t.d_antigo, r.maisAntigo, t.estreou(r.maisAntigo.ano)],
+    maisRevisto && [t.d_revisto, maisRevisto, t.visto_vezes(t.vezes(maisRevisto.vezes))],
   ].filter(Boolean);
-  $('#destaques').innerHTML = destaques.map(([etiqueta, f, det]) => `<a class="destaque" href="${linkStremio(f.id)}" title="Abrir no Stremio">
+  $('#destaques').innerHTML = destaques.map(([etiqueta, f, det]) => `<a class="destaque" href="${linkStremio(f.id)}" title="${esc(t.abrir_stremio)}">
       <span class="etiqueta">${esc(etiqueta)}</span>${capa(f)}
       <span class="titulo">${esc(f.nome)}</span><span class="det">${esc(det)}</span></a>`).join('')
-    || '<p class="mudo pequeno">Sem dados suficientes.</p>';
+    || semDados();
 
   // A meio
   $('#cartao-meio').hidden = !porAcabar.length;
-  $('#meio').innerHTML = porAcabar.slice(0, 12).map((f) => `<a class="filme" href="${linkStremio(f.id)}" title="Continuar no Stremio">
-      ${capa(f, `<span class="meio" aria-label="${Math.round(f.progresso * 100)}% visto"><i style="width:${f.progresso * 100}%"></i></span>`)}
-      <span class="titulo">${esc(f.nome)}</span><span class="det">${Math.round(f.progresso * 100)}% visto</span></a>`).join('');
+  $('#meio').innerHTML = porAcabar.slice(0, 12).map((f) => {
+    const visto = t.pct_visto(Math.round(f.progresso * 100));
+    return `<a class="filme" href="${linkStremio(f.id)}" title="${esc(t.continuar_stremio)}">
+      ${capa(f, `<span class="meio" aria-label="${esc(visto)}"><i style="width:${f.progresso * 100}%"></i></span>`)}
+      <span class="titulo">${esc(f.nome)}</span><span class="det">${esc(visto)}</span></a>`;
+  }).join('');
 
-  // A lista toda
-  lista = { vistos, mostrados: 60 };
-  $('#filtro-genero').innerHTML = '<option value="">Todos os géneros</option>'
-    + r.generos.map(([g, n]) => `<option value="${esc(g)}">${esc(genero(g))} (${n})</option>`).join('');
+  // A lista toda (mantém os filtros escolhidos se a língua mudar)
+  const generoAntes = $('#filtro-genero').value;
+  const anoAntes = $('#filtro-ano').value;
+  const mesmaLista = lista.vistos === vistos;
+  lista = { vistos, mostrados: mesmaLista ? lista.mostrados : 60 };
+  $('#filtro-genero').innerHTML = `<option value="">${esc(t.todos_generos)}</option>`
+    + r.generos.map(([g, n]) => `<option value="${esc(g)}">${esc(t.genero(g))} (${n})</option>`).join('');
   const anos = [...r.porAno].sort((a, b) => b[0] - a[0]);
-  $('#filtro-ano').innerHTML = '<option value="">Vistos em qualquer ano</option>'
-    + anos.map(([a, n]) => `<option value="${a}">Vistos em ${a} (${n})</option>`).join('')
-    + (r.semData ? `<option value="sem">Sem data certa (${r.semData})</option>` : '');
-  $('#procurar').value = '';
+  $('#filtro-ano').innerHTML = `<option value="">${esc(t.qualquer_ano)}</option>`
+    + anos.map(([a, n]) => `<option value="${a}">${esc(t.vistos_em(a, n))}</option>`).join('')
+    + (r.semData ? `<option value="sem">${esc(t.sem_data_certa(r.semData))}</option>` : '');
+  if (mesmaLista) {
+    $('#filtro-genero').value = generoAntes;
+    $('#filtro-ano').value = anoAntes;
+  } else $('#procurar').value = '';
   desenharLista();
 }
 
@@ -473,7 +520,7 @@ const ORDENAR = {
   nota: (a, b) => (b.nota || 0) - (a.nota || 0),
   estreia: (a, b) => (b.ano || 0) - (a.ano || 0),
   revistos: (a, b) => b.vezes - a.vezes || maisRecente(a, b),
-  az: (a, b) => a.nome.localeCompare(b.nome, 'pt'),
+  az: (a, b) => a.nome.localeCompare(b.nome, t.local),
 };
 
 function desenharLista() {
@@ -486,11 +533,12 @@ function desenharLista() {
       && (!q || semAcentos([f.nome, ...f.realizadores, ...f.elenco].join(' ')).includes(q)))
     .sort(ORDENAR[$('#ordem').value] || ORDENAR.recentes);
   const total = lista.vistos.length;
-  $('#t-lista').textContent = escolhidos.length === total ? filmes(total) : `${filmes(escolhidos.length)} de ${numero(total)}`;
-  $('#lista').innerHTML = escolhidos.slice(0, lista.mostrados).map((f) => `<a class="filme" href="${linkStremio(f.id)}" title="Abrir no Stremio">
+  const dataCurta = (ms) => { const p = partes(ms, FUSO); return `${p.dia} ${t.mesesCurtos[p.mes - 1]} ${p.ano}`; };
+  $('#t-lista').textContent = escolhidos.length === total ? t.filmes(total) : t.n_de_total(t.filmes(escolhidos.length), t.numero(total));
+  $('#lista').innerHTML = escolhidos.slice(0, lista.mostrados).map((f) => `<a class="filme" href="${linkStremio(f.id)}" title="${esc(t.abrir_stremio)}">
       ${capa(f)}<span class="titulo">${esc(f.nome)}</span>
-      <span class="det">${[f.ano, f.nota && `★ ${decimal(f.nota)}`, f.quando ? dataCurta(f.quando) : 'sem data'].filter(Boolean).map(esc).join(' · ')}</span></a>`).join('')
-    || '<p class="mudo">Nenhum filme encontrado.</p>';
+      <span class="det">${[f.ano, f.nota && `★ ${t.decimal(f.nota)}`, f.quando ? dataCurta(f.quando) : t.sem_data].filter(Boolean).map(esc).join(' · ')}</span></a>`).join('')
+    || `<p class="mudo">${esc(t.nenhum)}</p>`;
   $('#ver-mais').hidden = escolhidos.length <= lista.mostrados;
 }
 
@@ -501,25 +549,25 @@ $('#filtro-ano').addEventListener('change', () => { lista.mostrados = 60; desenh
 $('#descarregar').addEventListener('click', descarregar);
 $('#ver-mais').addEventListener('click', () => { lista.mostrados += 120; desenharLista(); });
 
-// Lista em CSV com ";" e acentos que o Excel em português abre bem.
+// Lista em CSV com ";" e acentos, que o Excel abre bem.
 function descarregar() {
   const celula = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const dataHora = (ms) => {
     const p = partes(ms, FUSO);
     return `${p.ano}-${String(p.mes).padStart(2, '0')}-${String(p.dia).padStart(2, '0')} ${String(p.hora).padStart(2, '0')}h`;
   };
-  const linhasCsv = [['Filme', 'Ano de estreia', 'Última vez que viste', 'Data certa', 'Vezes', 'Géneros', 'Realizador', 'Nota IMDb', 'Duração (min)']]
+  const linhasCsv = [t.csv_colunas]
     .concat([...lista.vistos].sort(maisRecente).map((f) => [
       f.nome, f.ano || '',
       f.quando ? dataHora(f.quando) : f.dataStremio ? dataHora(f.dataStremio) : '',
-      f.quando ? 'sim' : 'não (marcado de uma vez)',
-      f.vezes, f.generos.map(genero).join(', '), f.realizadores.join(', '),
-      f.nota ? decimal(f.nota) : '', f.minutos || '',
+      f.quando ? t.csv_sim : t.csv_nao,
+      f.vezes, f.generos.map(t.genero).join(', '), f.realizadores.join(', '),
+      f.nota ? t.decimal(f.nota) : '', f.minutos || '',
     ]));
-  const texto = '\ufeff' + linhasCsv.map((l) => l.map(celula).join(';')).join('\r\n');
+  const texto = '﻿' + linhasCsv.map((l) => l.map(celula).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'os-meus-filmes-stremio.csv';
+  a.download = t.csv_ficheiro;
   document.body.append(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
@@ -527,16 +575,17 @@ function descarregar() {
 
 // ——— Instalar a extensão no Stremio ———
 
+// O link leva a língua do painel, por isso é feito de novo de cada vez.
 async function linkDaExtensao() {
-  if (estado.cfg) return estado.cfg;
+  if (estado.modo === 'demo') return t.lingua === 'pt' ? 'demo' : `demo-${t.lingua}`;
+  const pedido = estado.modo === 'conta' ? { authKey: estado.sessao.authKey } : { cfg: estado.cfg };
   const r = await fetch('/api/ligar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ authKey: estado.sessao.authKey, fuso: FUSO }),
+    body: JSON.stringify({ ...pedido, fuso: FUSO, lingua: t.lingua }),
   });
   if (!r.ok) throw new Error(String(r.status));
-  estado.cfg = (await r.json()).cfg;
-  return estado.cfg;
+  return (await r.json()).cfg;
 }
 
 $('#instalar').addEventListener('click', async () => {
@@ -552,10 +601,10 @@ $('#instalar').addEventListener('click', async () => {
     const local = location.protocol === 'http:';
     $('#instalar-abrir').hidden = local;
     $('#instalar-local').hidden = !local;
-    $('#instalar-cuidado').hidden = cfg === 'demo';
+    $('#instalar-cuidado').hidden = eDemo(cfg);
     $('#janela-instalar').showModal();
   } catch {
-    alert('Não foi possível criar o link da extensão. Tenta outra vez daqui a pouco.');
+    alert(t.erro_instalar);
   } finally {
     botao.disabled = false;
   }
@@ -564,8 +613,8 @@ $('#instalar-fechar').addEventListener('click', () => $('#janela-instalar').clos
 $('#instalar-copiar').addEventListener('click', async () => {
   const campo = $('#instalar-url');
   try { await navigator.clipboard.writeText(campo.value); } catch { campo.select(); document.execCommand('copy'); }
-  $('#instalar-copiar').textContent = 'Copiado';
-  setTimeout(() => { $('#instalar-copiar').textContent = 'Copiar'; }, 2000);
+  $('#instalar-copiar').textContent = t.copiado;
+  setTimeout(() => { $('#instalar-copiar').textContent = t.copiar; }, 2000);
 });
 
 // ——— Botões da entrada ———
@@ -574,7 +623,7 @@ function sair() {
   guardado.apagar(CHAVE_SESSAO);
   estado = { modo: null, sessao: null, cfg: null };
   if (location.pathname !== '/' || location.search) history.replaceState(null, '', '/');
-  erroEntrada('');
+  erroEntrada(null);
   mostrar('entrada');
 }
 
@@ -590,6 +639,7 @@ $('#demo-entrar').addEventListener('click', sair);
 
 // ——— Arranque ———
 
+aplicarTextos();
 const sessao = guardado.ler(CHAVE_SESSAO);
 if (pedeExemplo) {
   estado = { modo: 'demo', sessao: null, cfg: 'demo' };

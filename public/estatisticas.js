@@ -2,14 +2,6 @@
 // navegador) como pela extensão que corre no Cloudflare (src/worker.js), por
 // isso não pode depender de nada que só exista num dos lados.
 
-export const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
-  'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-export const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-// A semana começa à segunda, como em Portugal.
-export const DIAS = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
-export const DIAS_CURTOS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
-// "à sexta", mas "ao sábado".
-export const aoDia = (i) => `${i >= 5 ? 'ao' : 'à'} ${DIAS[i]}`;
 const DIAS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export const posterDe = (id) => `https://images.metahub.space/poster/medium/${id}/img`;
@@ -217,47 +209,4 @@ export function resumoCompleto(vistos, metas, opcoes) {
   };
 }
 
-// ——— Palavras em português ———
-
-const GENEROS = {
-  Action: 'Ação', Adventure: 'Aventura', Animation: 'Animação', Biography: 'Biografia',
-  Comedy: 'Comédia', Crime: 'Crime', Documentary: 'Documentário', Drama: 'Drama',
-  Family: 'Família', Fantasy: 'Fantasia', 'Film-Noir': 'Film noir', History: 'História',
-  Horror: 'Terror', Music: 'Música', Musical: 'Musical', Mystery: 'Mistério',
-  Romance: 'Romance', 'Sci-Fi': 'Ficção científica', 'Science Fiction': 'Ficção científica',
-  Short: 'Curta-metragem', Sport: 'Desporto', Thriller: 'Thriller', War: 'Guerra',
-  Western: 'Western', News: 'Notícias', 'Reality-TV': 'Reality show', 'Talk-Show': 'Talk show',
-  'Game-Show': 'Concurso',
-};
-export const genero = (g) => GENEROS[g] || g;
-
-const PAISES = {
-  'United States': 'Estados Unidos', USA: 'Estados Unidos', 'United Kingdom': 'Reino Unido', UK: 'Reino Unido',
-  France: 'França', Germany: 'Alemanha', 'West Germany': 'Alemanha Ocidental', Italy: 'Itália', Spain: 'Espanha',
-  Portugal: 'Portugal', Brazil: 'Brasil', Japan: 'Japão', 'South Korea': 'Coreia do Sul', Korea: 'Coreia do Sul',
-  China: 'China', 'Hong Kong': 'Hong Kong', Taiwan: 'Taiwan', India: 'Índia', Canada: 'Canadá',
-  Australia: 'Austrália', 'New Zealand': 'Nova Zelândia', Mexico: 'México', Argentina: 'Argentina',
-  Ireland: 'Irlanda', Belgium: 'Bélgica', Netherlands: 'Países Baixos', Denmark: 'Dinamarca', Sweden: 'Suécia',
-  Norway: 'Noruega', Finland: 'Finlândia', Poland: 'Polónia', Russia: 'Rússia', 'Soviet Union': 'União Soviética',
-  Switzerland: 'Suíça', Austria: 'Áustria', 'Czech Republic': 'Chéquia', Czechia: 'Chéquia', Hungary: 'Hungria',
-  Greece: 'Grécia', Turkey: 'Turquia', Iran: 'Irão', Israel: 'Israel', 'South Africa': 'África do Sul',
-  Chile: 'Chile', Colombia: 'Colômbia', Thailand: 'Tailândia', Indonesia: 'Indonésia', Iceland: 'Islândia',
-  'United Arab Emirates': 'Emirados Árabes Unidos', Morocco: 'Marrocos', Egypt: 'Egito',
-};
-export const pais = (p) => PAISES[p] || p;
-
-export function feitio(hora) {
-  if (hora >= 5 && hora < 12) return 'de manhã';
-  if (hora >= 12 && hora < 19) return 'à tarde';
-  if (hora >= 19) return 'à noite';
-  return 'de madrugada';
-}
-
-export const numero = (n) => Math.round(n).toLocaleString('pt-PT');
 export const horasDe = (ms) => Math.round(ms / 3600000);
-export function mesAno(chave, curto = false) {
-  const [a, m] = String(chave).split('-').map(Number);
-  return `${(curto ? MESES_CURTOS : MESES)[m - 1]} ${a}`;
-}
-export const vezes = (n) => (n === 1 ? '1 vez' : `${n} vezes`);
-export const filmes = (n) => (n === 1 ? '1 filme' : `${numero(n)} filmes`);

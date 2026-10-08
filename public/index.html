@@ -11,54 +11,56 @@
   <script type="module" src="/painel.js"></script>
 </head>
 <body>
+  <!-- Os textos em português são os de partida; painel.js troca-os pela língua escolhida (data-t). -->
   <header class="topo">
-    <div class="marca"><img src="/logo.svg" alt=""><span>Os meus filmes no Stremio</span></div>
-    <button class="botao" id="instalar" hidden>Instalar no Stremio</button>
-    <button class="botao fantasma" id="sair" hidden>Sair</button>
+    <div class="marca"><img src="/logo.svg" alt=""><span data-t="titulo">Os meus filmes no Stremio</span></div>
+    <select id="lingua" class="lingua" data-t-aria="lingua_rotulo" aria-label="Língua"></select>
+    <button class="botao" id="instalar" hidden data-t="instalar">Instalar no Stremio</button>
+    <button class="botao fantasma" id="sair" hidden data-t="sair">Sair</button>
   </header>
 
   <main>
     <!-- Entrar -->
     <section class="entrada" id="vista-entrada" hidden>
-      <h1>Tudo o que já viste no Stremio, em números.</h1>
-      <p>Quantos filmes, quantas horas, os teus géneros, realizadores e atores preferidos, os dias e as horas
+      <h1 data-t="entrada_titulo">Tudo o que já viste no Stremio, em números.</h1>
+      <p data-t="entrada_texto">Quantos filmes, quantas horas, os teus géneros, realizadores e atores preferidos, os dias e as horas
         em que mais vês — e uma extensão que põe tudo isto dentro do próprio Stremio.</p>
 
       <div class="caixa" id="caixa-entrar">
         <div class="acoes">
-          <button class="botao grande" id="entrar-link">Entrar com a minha conta do Stremio</button>
-          <button class="botao fantasma grande" id="ver-exemplo">Ver um exemplo</button>
+          <button class="botao grande" id="entrar-link" data-t="entrar_link">Entrar com a minha conta do Stremio</button>
+          <button class="botao fantasma grande" id="ver-exemplo" data-t="ver_exemplo">Ver um exemplo</button>
         </div>
         <p class="erro" id="erro-entrada" hidden></p>
 
         <details class="alternativa" id="alternativa">
-          <summary>Prefiro escrever o email e a palavra-passe</summary>
+          <summary data-t="alternativa">Prefiro escrever o email e a palavra-passe</summary>
           <form class="login" id="form-login">
-            <label class="campo">Email da conta do Stremio
+            <label class="campo"><span data-t="campo_email">Email da conta do Stremio</span>
               <input type="email" name="email" autocomplete="username" required>
             </label>
-            <label class="campo">Palavra-passe
+            <label class="campo"><span data-t="campo_senha">Palavra-passe</span>
               <input type="password" name="password" autocomplete="current-password" required>
             </label>
-            <button class="botao" type="submit">Entrar</button>
+            <button class="botao" type="submit" data-t="entrar">Entrar</button>
           </form>
         </details>
       </div>
 
       <div class="caixa" id="caixa-codigo" hidden>
         <ol class="passos">
-          <li>Abre a página de confirmação do Stremio (entra na tua conta se ele pedir).</li>
-          <li>Confirma que o código é este:</li>
+          <li data-t="passo1">Abre a página de confirmação do Stremio (entra na tua conta se ele pedir).</li>
+          <li data-t="passo2">Confirma que o código é este:</li>
         </ol>
         <div class="codigo" id="codigo">····</div>
         <div class="acoes" style="margin-top:16px">
-          <a class="botao" id="abrir-link" href="#" target="_blank" rel="noopener noreferrer">Abrir a página de confirmação</a>
-          <button class="botao fantasma" id="cancelar-link">Cancelar</button>
+          <a class="botao" id="abrir-link" href="#" target="_blank" rel="noopener noreferrer" data-t="abrir_confirmacao">Abrir a página de confirmação</a>
+          <button class="botao fantasma" id="cancelar-link" data-t="cancelar">Cancelar</button>
         </div>
-        <div class="espera"><span class="roda" aria-hidden="true"></span><span>À espera da confirmação… esta página continua sozinha.</span></div>
+        <div class="espera"><span class="roda" aria-hidden="true"></span><span data-t="a_espera">À espera da confirmação… esta página continua sozinha.</span></div>
       </div>
 
-      <p class="privacidade">A palavra-passe nunca passa por aqui: vai diretamente para o Stremio. Esta página só guarda,
+      <p class="privacidade" data-t="privacidade">A palavra-passe nunca passa por aqui: vai diretamente para o Stremio. Esta página só guarda,
         neste navegador, a chave que o Stremio lhe dá para ler a tua biblioteca. Para a apagar, carrega em “Sair”.</p>
     </section>
 
@@ -72,12 +74,12 @@
     <!-- Painel -->
     <section id="vista-painel" hidden>
       <div class="aviso-demo" id="aviso-demo" hidden>
-        <span>Isto é um <strong>exemplo com um histórico inventado</strong>. Os filmes são reais; as datas não.</span>
-        <button class="botao" id="demo-entrar">Ver os meus filmes</button>
+        <span data-t="aviso_demo_html">Isto é um <strong>exemplo com um histórico inventado</strong>. Os filmes são reais; as datas não.</span>
+        <button class="botao" id="demo-entrar" data-t="demo_entrar">Ver os meus filmes</button>
       </div>
 
       <div class="heroi">
-        <div class="rotulo" id="ola">Filmes vistos</div>
+        <div class="rotulo" id="ola"></div>
         <div class="numero" id="total"></div>
         <p id="frase"></p>
       </div>
@@ -87,96 +89,96 @@
       <div class="grelha">
         <article class="cartao">
           <div class="cabeca">
-            <div><h2>Filmes ao longo do tempo</h2><p id="t-tempo"></p></div>
-            <div class="segmentos" role="group" aria-label="Agrupar por">
-              <button type="button" data-tempo="mes" aria-pressed="true">Por mês</button>
-              <button type="button" data-tempo="ano" aria-pressed="false">Por ano</button>
+            <div><h2 data-t="g_tempo">Filmes ao longo do tempo</h2><p id="t-tempo"></p></div>
+            <div class="segmentos" role="group" data-t-aria="agrupar" aria-label="Agrupar por">
+              <button type="button" data-tempo="mes" aria-pressed="true" data-t="por_mes">Por mês</button>
+              <button type="button" data-tempo="ano" aria-pressed="false" data-t="por_ano">Por ano</button>
             </div>
           </div>
           <div id="g-tempo"></div>
         </article>
 
         <article class="cartao metade">
-          <div class="cabeca"><div><h2>Géneros</h2><p>Um filme pode ter vários géneros.</p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_generos">Géneros</h2><p data-t="g_generos_sub">Um filme pode ter vários géneros.</p></div></div>
           <div id="g-generos"></div>
         </article>
         <article class="cartao metade">
-          <div class="cabeca"><div><h2>Décadas de estreia</h2><p>Em que época foram feitos os filmes que vês.</p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_decadas">Décadas de estreia</h2><p data-t="g_decadas_sub">Em que época foram feitos os filmes que vês.</p></div></div>
           <div id="g-decadas"></div>
         </article>
 
         <article class="cartao metade">
-          <div class="cabeca"><div><h2>Dias da semana</h2><p id="t-dias"></p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_dias">Dias da semana</h2><p id="t-dias"></p></div></div>
           <div id="g-dias"></div>
         </article>
         <article class="cartao metade">
-          <div class="cabeca"><div><h2>Horas do dia</h2><p id="t-horas"></p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_horas">Horas do dia</h2><p id="t-horas"></p></div></div>
           <div id="g-horas"></div>
         </article>
 
         <article class="cartao terco">
-          <div class="cabeca"><div><h2>Realizadores</h2><p>Os que mais viste.</p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_realizadores">Realizadores</h2><p data-t="g_realizadores_sub">Os que mais viste.</p></div></div>
           <div id="g-realizadores"></div>
         </article>
         <article class="cartao terco">
-          <div class="cabeca"><div><h2>Atores</h2><p>Entre os principais de cada filme.</p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_atores">Atores</h2><p data-t="g_atores_sub">Entre os principais de cada filme.</p></div></div>
           <div id="g-atores"></div>
         </article>
         <article class="cartao terco">
-          <div class="cabeca"><div><h2>Países</h2><p>De onde vêm os filmes.</p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_paises">Países</h2><p data-t="g_paises_sub">De onde vêm os filmes.</p></div></div>
           <div id="g-paises"></div>
         </article>
 
         <article class="cartao">
-          <div class="cabeca"><div><h2>Destaques</h2></div></div>
+          <div class="cabeca"><div><h2 data-t="g_destaques">Destaques</h2></div></div>
           <div class="destaques" id="destaques"></div>
         </article>
 
         <article class="cartao" id="cartao-meio" hidden>
-          <div class="cabeca"><div><h2>Ficaram a meio</h2><p>Filmes que começaste e ainda não acabaste.</p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_meio">Ficaram a meio</h2><p data-t="g_meio_sub">Filmes que começaste e ainda não acabaste.</p></div></div>
           <div class="filmes" id="meio"></div>
         </article>
 
         <article class="cartao">
-          <div class="cabeca"><div><h2>Todos os filmes que viste</h2><p id="t-lista"></p></div></div>
+          <div class="cabeca"><div><h2 data-t="g_lista">Todos os filmes que viste</h2><p id="t-lista"></p></div></div>
           <div class="filtros">
-            <input type="search" id="procurar" placeholder="Procurar um filme, realizador…" aria-label="Procurar">
-            <select id="ordem" aria-label="Ordenar">
-              <option value="recentes">Mais recentes</option>
-              <option value="antigos">Mais antigos</option>
-              <option value="nota">Melhor nota</option>
-              <option value="estreia">Ano de estreia</option>
-              <option value="revistos">Mais revistos</option>
-              <option value="az">De A a Z</option>
+            <input type="search" id="procurar" data-t-ph="procurar" data-t-aria="procurar_aria" placeholder="Procurar um filme, realizador…" aria-label="Procurar">
+            <select id="ordem" data-t-aria="ordenar" aria-label="Ordenar">
+              <option value="recentes" data-t="ordem_recentes">Mais recentes</option>
+              <option value="antigos" data-t="ordem_antigos">Mais antigos</option>
+              <option value="nota" data-t="ordem_nota">Melhor nota</option>
+              <option value="estreia" data-t="ordem_estreia">Ano de estreia</option>
+              <option value="revistos" data-t="ordem_revistos">Mais revistos</option>
+              <option value="az" data-t="ordem_az">De A a Z</option>
             </select>
-            <select id="filtro-genero" aria-label="Género"><option value="">Todos os géneros</option></select>
-            <select id="filtro-ano" aria-label="Ano em que viste"><option value="">Vistos em qualquer ano</option></select>
-            <button class="botao fantasma" id="descarregar" type="button">Descarregar (Excel)</button>
+            <select id="filtro-genero" data-t-aria="genero_aria" aria-label="Género"></select>
+            <select id="filtro-ano" data-t-aria="ano_aria" aria-label="Ano em que viste"></select>
+            <button class="botao fantasma" id="descarregar" type="button" data-t="descarregar">Descarregar (Excel)</button>
           </div>
           <div class="filmes" id="lista"></div>
-          <div class="mais"><button class="botao fantasma" id="ver-mais" hidden>Mostrar mais</button></div>
+          <div class="mais"><button class="botao fantasma" id="ver-mais" hidden data-t="ver_mais">Mostrar mais</button></div>
         </article>
       </div>
     </section>
   </main>
 
-  <footer>Dados do teu Stremio e do Cinemeta. Esta página não é do Stremio.</footer>
+  <footer data-t="rodape">Dados do teu Stremio e do Cinemeta. Esta página não é do Stremio.</footer>
 
   <div id="dica" role="tooltip" hidden></div>
 
   <dialog id="janela-instalar">
-    <h2>Instalar no Stremio</h2>
-    <p>A extensão junta à página inicial do Stremio duas filas: <strong>As minhas estatísticas</strong> e
+    <h2 data-t="janela_titulo">Instalar no Stremio</h2>
+    <p data-t="janela_texto_html">A extensão junta à página inicial do Stremio duas filas: <strong>As minhas estatísticas</strong> e
       <strong>Filmes que já vi</strong>. O botão “Configurar” da extensão traz-te de volta a este painel.</p>
-    <p id="instalar-local" hidden><strong>Neste computador:</strong> carrega em “Copiar”, abre as extensões do Stremio
+    <p id="instalar-local" hidden data-t="janela_local_html"><strong>Neste computador:</strong> carrega em “Copiar”, abre as extensões do Stremio
       (o ícone da peça de puzzle) e cola o link na caixa de pesquisa, no topo.</p>
     <div class="acoes">
-      <a class="botao" id="instalar-abrir" href="#">Abrir no Stremio</a>
-      <button class="botao fantasma" id="instalar-fechar">Fechar</button>
+      <a class="botao" id="instalar-abrir" href="#" data-t="abrir_no_stremio">Abrir no Stremio</a>
+      <button class="botao fantasma" id="instalar-fechar" data-t="fechar">Fechar</button>
     </div>
-    <p class="pequeno">Se o botão não abrir o Stremio, copia este link e cola-o na pesquisa da página de extensões do Stremio:</p>
-    <div class="link-copiar"><input id="instalar-url" readonly aria-label="Link da extensão"><button class="botao fantasma" id="instalar-copiar">Copiar</button></div>
-    <p class="cuidado" id="instalar-cuidado">Este link é só teu: dá para ver o teu histórico. Não o partilhes.</p>
+    <p class="pequeno" data-t="janela_se_nao">Se o botão não abrir o Stremio, copia este link e cola-o na pesquisa da página de extensões do Stremio:</p>
+    <div class="link-copiar"><input id="instalar-url" readonly data-t-aria="link_aria" aria-label="Link da extensão"><button class="botao fantasma" id="instalar-copiar" data-t="copiar">Copiar</button></div>
+    <p class="cuidado" id="instalar-cuidado" data-t="cuidado">Este link é só teu: dá para ver o teu histórico. Não o partilhes.</p>
   </dialog>
 </body>
 </html>
