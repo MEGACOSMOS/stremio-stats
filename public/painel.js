@@ -449,6 +449,10 @@ function desenhar(r, vistos, porAcabar) {
   lista = { vistos, mostrados: 60 };
   $('#filtro-genero').innerHTML = '<option value="">Todos os géneros</option>'
     + r.generos.map(([g, n]) => `<option value="${esc(g)}">${esc(genero(g))} (${n})</option>`).join('');
+  const anos = [...r.porAno].sort((a, b) => b[0] - a[0]);
+  $('#filtro-ano').innerHTML = '<option value="">Vistos em qualquer ano</option>'
+    + anos.map(([a, n]) => `<option value="${a}">Vistos em ${a} (${n})</option>`).join('')
+    + (r.semData ? `<option value="sem">Sem data certa (${r.semData})</option>` : '');
   $('#procurar').value = '';
   desenharLista();
 }
@@ -475,8 +479,10 @@ const ORDENAR = {
 function desenharLista() {
   const q = semAcentos($('#procurar').value.trim());
   const g = $('#filtro-genero').value;
+  const ano = $('#filtro-ano').value;
+  const doAno = (f) => !ano || (ano === 'sem' ? !f.quando : f.quando && partes(f.quando, FUSO).ano === Number(ano));
   const escolhidos = lista.vistos
-    .filter((f) => (!g || f.generos.includes(g))
+    .filter((f) => (!g || f.generos.includes(g)) && doAno(f)
       && (!q || semAcentos([f.nome, ...f.realizadores, ...f.elenco].join(' ')).includes(q)))
     .sort(ORDENAR[$('#ordem').value] || ORDENAR.recentes);
   const total = lista.vistos.length;
@@ -491,7 +497,33 @@ function desenharLista() {
 $('#procurar').addEventListener('input', () => { lista.mostrados = 60; desenharLista(); });
 $('#ordem').addEventListener('change', () => { lista.mostrados = 60; desenharLista(); });
 $('#filtro-genero').addEventListener('change', () => { lista.mostrados = 60; desenharLista(); });
+$('#filtro-ano').addEventListener('change', () => { lista.mostrados = 60; desenharLista(); });
+$('#descarregar').addEventListener('click', descarregar);
 $('#ver-mais').addEventListener('click', () => { lista.mostrados += 120; desenharLista(); });
+
+// Lista em CSV com ";" e acentos que o Excel em português abre bem.
+function descarregar() {
+  const celula = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const dataHora = (ms) => {
+    const p = partes(ms, FUSO);
+    return `${p.ano}-${String(p.mes).padStart(2, '0')}-${String(p.dia).padStart(2, '0')} ${String(p.hora).padStart(2, '0')}h`;
+  };
+  const linhasCsv = [['Filme', 'Ano de estreia', 'Última vez que viste', 'Data certa', 'Vezes', 'Géneros', 'Realizador', 'Nota IMDb', 'Duração (min)']]
+    .concat([...lista.vistos].sort(maisRecente).map((f) => [
+      f.nome, f.ano || '',
+      f.quando ? dataHora(f.quando) : f.dataStremio ? dataHora(f.dataStremio) : '',
+      f.quando ? 'sim' : 'não (marcado de uma vez)',
+      f.vezes, f.generos.map(genero).join(', '), f.realizadores.join(', '),
+      f.nota ? decimal(f.nota) : '', f.minutos || '',
+    ]));
+  const texto = '\ufeff' + linhasCsv.map((l) => l.map(celula).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'os-meus-filmes-stremio.csv';
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
 
 // ——— Instalar a extensão no Stremio ———
 
