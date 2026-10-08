@@ -124,7 +124,7 @@ const PERIODOS = {
 
 const T = {
   pt: {
-    titulo: 'Os meus filmes no Stremio',
+    titulo: 'Stremio Stats',
     descricao_pagina: 'Estatísticas de todos os filmes que já viste no Stremio.',
     lingua_rotulo: 'Língua',
     instalar: 'Instalar no Stremio',
@@ -263,7 +263,7 @@ const T = {
     decada: (d) => (d >= 1920 && d < 2000 ? `anos ${d % 100}` : `anos ${d}`),
 
     // Dentro do Stremio
-    ext_nome: 'Estatísticas dos meus filmes',
+    ext_nome: 'Stremio Stats',
     ext_exemplo: ' (exemplo)',
     ext_descricao: 'Quantos filmes já viste no Stremio, quantas horas, os géneros, realizadores, dias e horas favoritos, e a lista de todos eles. Abre "Configurar" para ver o painel completo.',
     cat_estatisticas: 'As minhas estatísticas',
@@ -316,7 +316,7 @@ const T = {
   },
 
   en: {
-    titulo: 'My movies on Stremio',
+    titulo: 'Stremio Stats',
     descricao_pagina: 'Statistics for every movie you have watched on Stremio.',
     lingua_rotulo: 'Language',
     instalar: 'Install in Stremio',
@@ -454,7 +454,7 @@ const T = {
     vezes: (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`),
     decada: (d) => `${d}s`,
 
-    ext_nome: 'My movie statistics',
+    ext_nome: 'Stremio Stats',
     ext_exemplo: ' (example)',
     ext_descricao: 'How many movies you’ve watched on Stremio, how many hours, your favourite genres, directors, days and times, and the list of all of them. Open "Configure" for the full dashboard.',
     cat_estatisticas: 'My statistics',
@@ -507,7 +507,7 @@ const T = {
   },
 
   fr: {
-    titulo: 'Mes films sur Stremio',
+    titulo: 'Stremio Stats',
     descricao_pagina: 'Les statistiques de tous les films que tu as vus sur Stremio.',
     lingua_rotulo: 'Langue',
     instalar: 'Installer dans Stremio',
@@ -645,7 +645,7 @@ const T = {
     vezes: (n) => (n === 1 ? '1 fois' : `${n} fois`),
     decada: (d) => (d >= 1920 && d < 2000 ? `années ${d % 100}` : `années ${d}`),
 
-    ext_nome: 'Statistiques de mes films',
+    ext_nome: 'Stremio Stats',
     ext_exemplo: ' (exemple)',
     ext_descricao: 'Combien de films tu as vus sur Stremio, combien d’heures, tes genres, réalisateurs, jours et heures préférés, et la liste de tous. Ouvre « Configurer » pour le tableau de bord complet.',
     cat_estatisticas: 'Mes statistiques',
@@ -698,7 +698,7 @@ const T = {
   },
 
   es: {
-    titulo: 'Mis películas en Stremio',
+    titulo: 'Stremio Stats',
     descricao_pagina: 'Estadísticas de todas las películas que has visto en Stremio.',
     lingua_rotulo: 'Idioma',
     instalar: 'Instalar en Stremio',
@@ -836,7 +836,7 @@ const T = {
     vezes: (n) => (n === 1 ? '1 vez' : `${n} veces`),
     decada: (d) => (d >= 1920 && d < 2000 ? `años ${d % 100}` : `años ${d}`),
 
-    ext_nome: 'Estadísticas de mis películas',
+    ext_nome: 'Stremio Stats',
     ext_exemplo: ' (ejemplo)',
     ext_descricao: 'Cuántas películas has visto en Stremio, cuántas horas, tus géneros, directores, días y horas favoritos, y la lista de todas. Abre «Configurar» para ver el panel completo.',
     cat_estatisticas: 'Mis estadísticas',
@@ -889,7 +889,7 @@ const T = {
   },
 
   it: {
-    titulo: 'I miei film su Stremio',
+    titulo: 'Stremio Stats',
     descricao_pagina: 'Le statistiche di tutti i film che hai visto su Stremio.',
     lingua_rotulo: 'Lingua',
     instalar: 'Installa in Stremio',
@@ -1027,7 +1027,7 @@ const T = {
     vezes: (n) => (n === 1 ? '1 volta' : `${n} volte`),
     decada: (d) => (d >= 1920 && d < 2000 ? `anni ’${d % 100}` : `anni ${d}`),
 
-    ext_nome: 'Statistiche dei miei film',
+    ext_nome: 'Stremio Stats',
     ext_exemplo: ' (esempio)',
     ext_descricao: 'Quanti film hai visto su Stremio, quante ore, i tuoi generi, registi, giorni e ore preferiti, e l’elenco di tutti. Apri «Configura» per la pagina completa.',
     cat_estatisticas: 'Le mie statistiche',

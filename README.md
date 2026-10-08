@@ -1,4 +1,4 @@
-# Estatísticas dos meus filmes (extensão para o Stremio)
+# Stremio Stats (extensão para o Stremio)
 
 Mostra estatísticas de todos os filmes que já viste no Stremio.
 
