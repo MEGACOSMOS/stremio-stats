@@ -34,5 +34,5 @@ extensão abre o painel completo.
 - `src/demo.json` — biblioteca de exemplo (filmes reais, datas inventadas);
   refaz-se com `bun run demo`. Abre-se em `/?exemplo` ou em `/demo/manifest.json`.
 - Testar: `bun run dev` (porta 8010). O segredo local está em `.dev.vars`.
-- Publicado em https://stremio-estatisticas.malhaviva.workers.dev (conta Cloudflare da Malha Viva, Worker separado do site).
+- Publicado em https://stremiostats.stream (domínio próprio, registado na Cloudflare) e em https://stremio-estatisticas.malhaviva.workers.dev (para as instalações antigas).
 - Publicar de novo: `bun run deploy` (o SEGREDO já está guardado na Cloudflare; mudá-lo invalida os links instalados).

@@ -2,6 +2,12 @@ name = "stremio-estatisticas"
 main = "src/worker.js"
 compatibility_date = "2026-03-10"
 
+# O domínio próprio. O endereço workers.dev continua ativo para as instalações antigas.
+workers_dev = true
+routes = [
+  { pattern = "stremiostats.stream", custom_domain = true }
+]
+
 # O painel (public/) é servido diretamente; o resto passa pelo Worker.
 [assets]
 directory = "./public"
