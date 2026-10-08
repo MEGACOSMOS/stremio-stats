@@ -12,13 +12,19 @@
 //   /<cfg>/biblioteca.json               filmes da biblioteca, para o painel
 //   /<cfg>/configure                     o painel (botão "Configurar" do Stremio)
 //   /api/ligar                           cria o <cfg> (a partir da chave de sessão ou de outro <cfg>)
-//   /cartao.svg                          capa dos cartões de estatísticas
+//   /cartao.png (e /cartao.svg)          capa dos cartões de estatísticas
 //
 // <cfg> = "demo" (ou "demo-en", "demo-fr"…) usa a biblioteca de exemplo em src/demo.json.
 
 import DEMO from './demo.json';
 import { lerBiblioteca, resumoBase, maisAntigo, maisRecente, partes as partesData, horasDe, fundoDe } from '../public/estatisticas.js';
 import { textos, linguaDe, LINGUAS } from '../public/textos.js';
+import { svgCartao } from './cartao.js';
+import { Resvg, initWasm } from '@resvg/resvg-wasm';
+import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
+import inter400 from './fontes/inter-400.ttf';
+import inter600 from './fontes/inter-600.ttf';
+import inter800 from './fontes/inter-800.ttf';
 
 const VERSAO = '1.1.0';
 const PREFIXO = 'mvest:';
@@ -41,12 +47,12 @@ const json = (dados, { estado = 200, cache = 0 } = {}) => new Response(JSON.stri
 class SessaoInvalida extends Error {}
 
 export default {
-  async fetch(pedido, env) {
+  async fetch(pedido, env, contexto) {
     if (pedido.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(pedido.url);
     const partes = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     try {
-      return await encaminhar(pedido, env, url, partes);
+      return await encaminhar(pedido, env, url, partes, contexto);
     } catch (erro) {
       if (erro instanceof SessaoInvalida) return json({ erro: 'sessao' }, { estado: 401 });
       console.error(erro);
@@ -57,10 +63,11 @@ export default {
 
 const linguaDoPedido = (pedido) => linguaDe((pedido.headers.get('Accept-Language') || '').split(','));
 
-async function encaminhar(pedido, env, url, partes) {
+async function encaminhar(pedido, env, url, partes, contexto) {
   const origem = url.origin;
   if (partes[0] === 'manifest.json') return json(manifesto(origem, null, textos(linguaDoPedido(pedido))));
   if (partes[0] === 'cartao.svg') return cartaoSvg(url.searchParams);
+  if (partes[0] === 'cartao.png') return cartaoPng(pedido, url, contexto);
   if (partes[0] === 'configure') return painel(env, origem);
   if (partes[0] === 'api' && partes[1] === 'ligar' && pedido.method === 'POST') {
     const { authKey, cfg: outro, fuso, lingua } = await pedido.json().catch(() => ({}));
@@ -138,8 +145,8 @@ function manifesto(origem, cfg, t) {
     version: VERSAO,
     name: t.ext_nome,
     description: t.ext_descricao,
-    logo: `${origem}/logo.svg`,
-    background: `${origem}/fundo.svg`,
+    logo: `${origem}/logo.png`,
+    background: `${origem}/fundo.jpg`,
     types: ['movie'],
     resources: ['catalog', { name: 'meta', types: ['movie'], idPrefixes: [PREFIXO] }],
     idPrefixes: [PREFIXO],
@@ -180,11 +187,11 @@ const maiuscula = (x) => x.charAt(0).toUpperCase() + x.slice(1);
 function cartoes(vistos, fuso, origem, base, t) {
   const r = resumoBase(vistos, { fuso });
   const painelUrl = `${base}/configure`;
-  const fundo = r.ultimos[0]?.id?.startsWith('tt') ? fundoDe(r.ultimos[0].id) : `${origem}/fundo.svg`;
+  const fundo = r.ultimos[0]?.id?.startsWith('tt') ? fundoDe(r.ultimos[0].id) : `${origem}/fundo.jpg`;
   const data = (ms) => t.dataLonga(ms, fuso);
   const lista = [];
   const cartao = (chave, rotulo, valor, sub, nome, descricao) => {
-    const capa = new URL(`${origem}/cartao.svg`);
+    const capa = new URL(`${origem}/cartao.png`);
     capa.search = new URLSearchParams({ r: rotulo, v: valor, s: sub, c: String(lista.length), m: t.marca_cartao }).toString();
     lista.push({
       id: PREFIXO + chave, type: 'movie', name: nome, poster: capa.toString(), posterShape: 'poster',
@@ -267,7 +274,7 @@ function cartoes(vistos, fuso, origem, base, t) {
 
 function cartaoSessao(origem, t) {
   const [rotulo, valor, sub, nome, desc, link] = t.c_sessao;
-  const capa = `${origem}/cartao.svg?${new URLSearchParams({ r: rotulo, v: valor, s: sub, c: '0', m: t.marca_cartao })}`;
+  const capa = `${origem}/cartao.png?${new URLSearchParams({ r: rotulo, v: valor, s: sub, c: '0', m: t.marca_cartao })}`;
   return {
     id: `${PREFIXO}sessao`, type: 'movie', name: nome, poster: capa, posterShape: 'poster', description: desc,
     links: [{ name: link, category: t.link_categoria, url: `${origem}/` }],
@@ -276,56 +283,34 @@ function cartaoSessao(origem, t) {
 
 // ——— Capas dos cartões ———
 
-const CORES = [['#5b3fd1', '#1b1035'], ['#c2410c', '#2a1208'], ['#0f766e', '#071f1d'], ['#a21caf', '#26082a'],
-  ['#1d4ed8', '#0a1633'], ['#b45309', '#271605'], ['#be123c', '#2a0711'], ['#4d7c0f', '#121d05'], ['#6d28d9', '#170b2e']];
-
-const escapar = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-// Parte um texto em linhas de até `largura` caracteres.
-function partir(texto, largura, maxLinhas) {
-  const palavras = String(texto).split(/\s+/);
-  const res = [];
-  let atual = '';
-  for (const p of palavras) {
-    if (atual && (atual + ' ' + p).length > largura) { res.push(atual); atual = p; } else atual = atual ? `${atual} ${p}` : p;
-  }
-  if (atual) res.push(atual);
-  if (res.length > maxLinhas) {
-    res.length = maxLinhas;
-    res[maxLinhas - 1] = res[maxLinhas - 1].replace(/\s*\S*$/, '') + '…';
-  }
-  return res;
-}
-
+// SVG para quem o mostra (Stremio no computador, navegadores); PNG para as
+// aplicações de telemóvel e TV, que não mostram SVG. O PNG é feito pelo resvg
+// e guardado na cache da Cloudflare: cada cartão só é desenhado uma vez.
 function cartaoSvg(q) {
-  const rotulo = (q.get('r') || '').slice(0, 40);
-  const valor = (q.get('v') || '').slice(0, 60);
-  const sub = (q.get('s') || '').slice(0, 40);
-  const marca = (q.get('m') || 'ESTATÍSTICAS').slice(0, 20);
-  const [cor, escuro] = CORES[(parseInt(q.get('c'), 10) || 0) % CORES.length];
-  // Números e palavras curtas numa linha, tão grandes quanto cabem nos ~236 px
-  // úteis (≈0,62 em por letra em negrito); nomes de filmes em várias linhas.
-  const umaLinha = Math.min(120, Math.floor(236 / (Math.max(1, valor.length) * 0.62)));
-  const curto = umaLinha >= 42;
-  const tamanho = curto ? umaLinha : valor.length <= 14 ? 44 : 36;
-  const linhasValor = curto ? [valor] : partir(valor, tamanho > 40 ? 11 : 13, 4);
-  const altura = tamanho * 1.08;
-  const topo = 248 - ((linhasValor.length - 1) * altura) / 2;
-  const texto = linhasValor.map((l, i) => `<text x="32" y="${topo + i * altura}" class="v">${escapar(l)}</text>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450">
-<defs><linearGradient id="g" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="${cor}"/><stop offset="1" stop-color="${escuro}"/></linearGradient>
-<radialGradient id="b" cx="0.9" cy="0.05" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
-<style>text{font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;fill:#fff}.r{font-size:20px;font-weight:600;opacity:.85}.v{font-size:${tamanho}px;font-weight:800;letter-spacing:-.02em;dominant-baseline:middle}.s{font-size:20px;opacity:.85}.m{font-size:14px;font-weight:600;letter-spacing:.12em;opacity:.6}</style>
-<rect width="300" height="450" fill="url(#g)"/><rect width="300" height="450" fill="url(#b)"/>
-<rect x="32" y="40" width="36" height="5" rx="2.5" fill="#fff" opacity=".9"/>
-${partir(rotulo, 24, 2).map((l, i) => `<text x="32" y="${82 + i * 25}" class="r">${escapar(l)}</text>`).join('')}
-${texto}
-${partir(sub, 24, 2).map((l, i) => `<text x="32" y="${360 + i * 25}" class="s">${escapar(l)}</text>`).join('')}
-<text x="32" y="420" class="m">${escapar(marca)}</text>
-</svg>`;
-  return new Response(svg, {
+  return new Response(svgCartao(q), {
     headers: { ...CORS, 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' },
   });
+}
+
+let resvgPronto = null;
+const FONTES = [inter400, inter600, inter800].map((f) => new Uint8Array(f));
+
+async function cartaoPng(pedido, url, contexto) {
+  const cache = caches.default;
+  const guardado = await cache.match(pedido);
+  if (guardado) return guardado;
+  resvgPronto ??= initWasm(resvgWasm);
+  await resvgPronto;
+  const png = new Resvg(svgCartao(url.searchParams), {
+    fitTo: { mode: 'width', value: 300 },
+    font: { fontBuffers: FONTES, loadSystemFonts: false, defaultFontFamily: 'Inter', sansSerifFamily: 'Inter' },
+  }).render().asPng();
+  // O conteúdo depende só do endereço, por isso pode ficar guardado muito tempo.
+  const resposta = new Response(png, {
+    headers: { ...CORS, 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=2592000, immutable' },
+  });
+  contexto.waitUntil(cache.put(pedido, resposta.clone()));
+  return resposta;
 }
 
 // ——— Stremio: a biblioteca ———

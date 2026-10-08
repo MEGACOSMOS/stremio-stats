@@ -82,7 +82,8 @@ JavaScript. (The code and its comments are in Portuguese.)
 
 | File | What it does |
 |---|---|
-| `src/worker.js` | The Stremio add-on (manifest, catalogs, SVG stat cards) and the dashboard server |
+| `src/worker.js` | The Stremio add-on (manifest, catalogs, stat cards) and the dashboard server |
+| `src/cartao.js` | The stat-card design (SVG), turned into PNG with [resvg](https://github.com/RazrFalcon/resvg) because Stremio's phone and TV apps don't show SVG |
 | `public/index.html`, `painel.js`, `estilo.css` | The dashboard |
 | `public/estatisticas.js` | The statistics — shared by the dashboard and the Worker |
 | `public/textos.js` | Every piece of text in the five languages — shared by the dashboard and the Worker |

@@ -8,6 +8,12 @@ routes = [
   { pattern = "stremiostats.stream", custom_domain = true }
 ]
 
+# As letras (Inter) que o resvg usa para desenhar os cartões em PNG.
+[[rules]]
+type = "Data"
+globs = ["**/*.ttf"]
+fallthrough = true
+
 # O painel (public/) é servido diretamente; o resto passa pelo Worker.
 [assets]
 directory = "./public"

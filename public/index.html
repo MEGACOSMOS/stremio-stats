@@ -7,13 +7,14 @@
   <meta name="description" content="Estatísticas de todos os filmes que já viste no Stremio.">
   <meta name="referrer" content="no-referrer">
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/logo.png">
   <link rel="stylesheet" href="/estilo.css">
   <script type="module" src="/painel.js"></script>
 </head>
 <body>
   <!-- Os textos em português são os de partida; painel.js troca-os pela língua escolhida (data-t). -->
   <header class="topo">
-    <div class="marca"><img src="/logo.svg" alt=""><span data-t="titulo">Stremio Stats</span></div>
+    <div class="marca"><img src="/logo.png" alt="" width="32" height="32"><span data-t="titulo">Stremio Stats</span></div>
     <select id="lingua" class="lingua" data-t-aria="lingua_rotulo" aria-label="Língua"></select>
     <button class="botao" id="instalar" hidden data-t="instalar">Instalar no Stremio</button>
     <button class="botao fantasma" id="sair" hidden data-t="sair">Sair</button>
