@@ -26,7 +26,7 @@ import inter400 from './fontes/inter-400.ttf';
 import inter600 from './fontes/inter-600.ttf';
 import inter800 from './fontes/inter-800.ttf';
 
-const VERSAO = '1.1.0';
+const VERSAO = '1.2.0';
 const PREFIXO = 'mvest:';
 
 const CORS = {
@@ -61,7 +61,12 @@ export default {
   },
 };
 
-const linguaDoPedido = (pedido) => linguaDe((pedido.headers.get('Accept-Language') || '').split(','));
+// A língua do manifesto por configurar. Sem língua conhecida no pedido (é o
+// caso do catálogo central do Stremio, que o mostra a toda a gente), inglês.
+const linguaDoPedido = (pedido) => {
+  const pedidas = (pedido.headers.get('Accept-Language') || '').split(',').map((x) => x.trim().slice(0, 2).toLowerCase());
+  return pedidas.find((l) => l in LINGUAS) || 'en';
+};
 
 async function encaminhar(pedido, env, url, partes, contexto) {
   const origem = url.origin;
