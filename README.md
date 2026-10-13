@@ -68,8 +68,7 @@ Want to see what it looks like first? There's an **[example with a made-up histo
 
 - **Stremio only keeps the last time you watched each movie.** The month, day and time charts use that date: a
   movie watched in 2021 and reopened in 2023 counts in 2023.
-- **Movies marked as watched all at once** (or imported) get the date of that moment. Since nobody finishes two
-  movies less than 20 minutes apart, Stremio Stats recognises them, leaves them out of the date-based charts and
+- **Movies marked as watched all at once** (or imported) get the date of that moment. Stremio Stats recognises them (3 or more movies less than 10 minutes apart, or 2 less than a minute apart — nobody finishes movies that fast), leaves them out of the date-based charts and
   lists them as "no reliable date".
 - Genres, directors, actors, countries, ratings and runtimes come from **Cinemeta**, Stremio's official catalogue,
   which sometimes has mistakes (release years, for example).

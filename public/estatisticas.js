@@ -47,19 +47,28 @@ export const maisRecente = (a, b) => (b.quando || 0) - (a.quando || 0)
 export const maisAntigo = (a, b) => (!a.quando) - (!b.quando) || (a.quando || 0) - (b.quando || 0);
 
 // Quando se marcam vários filmes como vistos de uma vez (ou o Stremio importa
-// ou sincroniza a biblioteca), todos ficam com a data desse momento. Ninguém
-// acaba dois filmes com menos de 20 minutos de intervalo, por isso essas datas
-// não dizem quando o filme foi visto: não entram nas contas por mês, dia e hora.
-const INTERVALO_MINIMO = 20 * 60 * 1000;
+// ou sincroniza a biblioteca), todos ficam com a data desse momento, e essa
+// data não diz quando o filme foi visto: não entra nas contas por mês, dia e
+// hora. Conta como lote uma série de 3 ou mais filmes com menos de 10 minutos
+// entre cada um, ou 2 filmes com menos de 1 minuto. Dois filmes a 15 minutos
+// (acabar um e reabrir outro já visto) mantêm as datas: o primeiro foi mesmo
+// visto àquela hora.
+const LOTE_INTERVALO = 10 * 60 * 1000;
+const LOTE_MINIMO = 3;
+const PAR_INTERVALO = 60 * 1000;
 function semDataCerta(vistos) {
   const comData = vistos.filter((f) => f.quando).sort((a, b) => a.quando - b.quando);
   const duvidosos = new Set();
+  let serie = comData.slice(0, 1);
+  const fecharSerie = () => {
+    const parColado = serie.length === 2 && serie[1].quando - serie[0].quando < PAR_INTERVALO;
+    if (serie.length >= LOTE_MINIMO || parColado) for (const f of serie) duvidosos.add(f);
+  };
   for (let i = 1; i < comData.length; i++) {
-    if (comData[i].quando - comData[i - 1].quando < INTERVALO_MINIMO) {
-      duvidosos.add(comData[i]);
-      duvidosos.add(comData[i - 1]);
-    }
+    if (comData[i].quando - comData[i - 1].quando < LOTE_INTERVALO) serie.push(comData[i]);
+    else { fecharSerie(); serie = [comData[i]]; }
   }
+  fecharSerie();
   for (const f of duvidosos) {
     f.dataStremio = f.quando;
     f.quando = null;
