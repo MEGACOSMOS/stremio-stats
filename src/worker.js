@@ -18,13 +18,17 @@
 
 import DEMO from './demo.json';
 import { lerBiblioteca, resumoBase, maisAntigo, maisRecente, partes as partesData, horasDe, fundoDe } from '../public/estatisticas.js';
-import { textos, linguaDe, LINGUAS } from '../public/textos.js';
+import { textos, linguaDe, codigoLingua, LINGUAS } from '../public/textos.js';
 import { svgCartao } from './cartao.js';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm';
 import inter400 from './fontes/inter-400.ttf';
 import inter600 from './fontes/inter-600.ttf';
 import inter800 from './fontes/inter-800.ttf';
+// Letras de outras línguas latinas (polaco, turco…): ą ł ś ğ ş ı İ …
+import interExt400 from './fontes/inter-ext-400.ttf';
+import interExt600 from './fontes/inter-ext-600.ttf';
+import interExt800 from './fontes/inter-ext-800.ttf';
 
 const VERSAO = '1.2.0';
 const PREFIXO = 'mvest:';
@@ -64,8 +68,8 @@ export default {
 // A língua do manifesto por configurar. Sem língua conhecida no pedido (é o
 // caso do catálogo central do Stremio, que o mostra a toda a gente), inglês.
 const linguaDoPedido = (pedido) => {
-  const pedidas = (pedido.headers.get('Accept-Language') || '').split(',').map((x) => x.trim().slice(0, 2).toLowerCase());
-  return pedidas.find((l) => l in LINGUAS) || 'en';
+  const pedidas = (pedido.headers.get('Accept-Language') || '').split(',').map((x) => codigoLingua(x.split(';')[0]));
+  return pedidas.find(Boolean) || 'en';
 };
 
 async function encaminhar(pedido, env, url, partes, contexto) {
@@ -303,7 +307,7 @@ function cartaoSvg(q) {
 }
 
 let resvgPronto = null;
-const FONTES = [inter400, inter600, inter800].map((f) => new Uint8Array(f));
+const FONTES = [inter400, inter600, inter800, interExt400, interExt600, interExt800].map((f) => new Uint8Array(f));
 
 async function cartaoPng(pedido, url, contexto) {
   const cache = caches.default;

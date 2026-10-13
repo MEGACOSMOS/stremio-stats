@@ -42,7 +42,7 @@ The add-on's **Configure** button opens the full dashboard.
 
 ![Statistics cards inside Stremio](docs/stremio-cards.jpg)
 
-**Five languages** — English, Portuguese, French, Spanish and Italian. The dashboard follows your browser's
+**Ten languages** — English, Portuguese (Portugal and Brazil), French, Spanish, Italian, German, Dutch, Polish and Turkish. The dashboard follows your browser's
 language (and has a language picker at the top); the add-on uses the language chosen when you install it.
 
 ## How to use it
@@ -76,7 +76,7 @@ Want to see what it looks like first? There's an **[example with a made-up histo
 - A movie counts as watched exactly when Stremio says so: once 70 % of it has played, or when you mark it as watched. Unmarking it removes it.
 - Only movies are counted; series are left out.
 
-How Stremio records each movie, and the rules above, are checked by `scripts/testar-registos.mjs` (a small simulation of Stremio's own recording logic) and `scripts/testar-datas.mjs`.
+How Stremio records each movie, and the rules above, are checked by `scripts/testar-registos.mjs` (a small simulation of Stremio's own recording logic) and `scripts/testar-datas.mjs`; `scripts/testar-linguas.mjs` checks that every language has every text.
 
 ## For developers
 
@@ -89,7 +89,7 @@ JavaScript. (The code and its comments are in Portuguese.)
 | `src/cartao.js` | The stat-card design (SVG), turned into PNG with [resvg](https://github.com/RazrFalcon/resvg) because Stremio's phone and TV apps don't show SVG |
 | `public/index.html`, `painel.js`, `estilo.css` | The dashboard |
 | `public/estatisticas.js` | The statistics — shared by the dashboard and the Worker |
-| `public/textos.js` | Every piece of text in the five languages — shared by the dashboard and the Worker |
+| `public/textos.js`, `textos-mais.js` | Every piece of text in the ten languages — shared by the dashboard and the Worker |
 | `src/demo.json` | Example library (real movies, made-up dates); regenerate it with `bun run demo` |
 
 **Running your own copy** (needs [Bun](https://bun.sh) and a Cloudflare account):

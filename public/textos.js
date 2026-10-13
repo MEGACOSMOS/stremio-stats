@@ -1,19 +1,37 @@
-// Os textos do painel e da extensão em cinco línguas. É usado tanto pelo
-// painel (no navegador) como pela extensão (src/worker.js), por isso só pode
-// usar o que existe nos dois lados.
+// Os textos do painel e da extensão. É usado tanto pelo painel (no navegador)
+// como pela extensão (src/worker.js), por isso só pode usar o que existe nos
+// dois lados. Aqui estão português, inglês, francês, espanhol e italiano; as
+// outras línguas estão em textos-mais.js e juntam-se mais abaixo.
 //
 // Chaves acabadas em _html levam marcação e entram com innerHTML; são textos
 // nossos, nunca dados de fora.
 
-export const LINGUAS = { pt: 'Português', en: 'English', fr: 'Français', es: 'Español', it: 'Italiano' };
-export const LOCAIS = { pt: 'pt-PT', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT' };
+import { MAIS } from './textos-mais.js';
+
+// A ordem é a do seletor de língua. "br" é o português do Brasil.
+export const LINGUAS = {
+  pt: 'Português (Portugal)', br: MAIS.br.nome, en: 'English', fr: 'Français', es: 'Español', it: 'Italiano',
+  de: MAIS.de.nome, nl: MAIS.nl.nome, pl: MAIS.pl.nome, tr: MAIS.tr.nome,
+};
+export const LOCAIS = {
+  pt: 'pt-PT', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT',
+  ...Object.fromEntries(Object.entries(MAIS).map(([l, x]) => [l, x.local])),
+};
 const ORDEM = ['pt', 'en', 'fr', 'es', 'it'];
+
+// O código de uma etiqueta de língua ("en-US" → en, "pt-BR" → br), ou null.
+export function codigoLingua(etiqueta) {
+  const e = String(etiqueta || '').trim().toLowerCase();
+  if (e === 'br' || e.startsWith('pt-br')) return 'br';
+  const l = e.slice(0, 2);
+  return l in LINGUAS ? l : null;
+}
 
 // A primeira língua conhecida de uma lista ("en-US", "fr", …); senão português.
 export function linguaDe(...candidatos) {
   for (const c of candidatos.flat()) {
-    const l = String(c || '').trim().toLowerCase().slice(0, 2);
-    if (l in LINGUAS) return l;
+    const l = codigoLingua(c);
+    if (l) return l;
   }
   return 'pt';
 }
@@ -1090,6 +1108,19 @@ const T = {
   },
 };
 
+// As línguas de textos-mais.js juntam-se às tabelas daqui.
+const HORAS = { pt: (h) => `${h}h`, en: (h) => `${h}:00`, fr: (h) => `${h} h`, es: (h) => `${h} h`, it: (h) => `${h}:00` };
+for (const [l, x] of Object.entries(MAIS)) {
+  T[l] = x.textos;
+  MESES[l] = x.meses;
+  MESES_CURTOS[l] = x.mesesCurtos;
+  DIAS[l] = x.dias;
+  DIAS_CURTOS[l] = x.diasCurtos;
+  NO_DIA[l] = x.noDia;
+  PERIODOS[l] = x.periodos;
+  HORAS[l] = x.hora;
+}
+
 const cache = new Map();
 
 // Tudo o que é preciso para escrever numa língua: as frases e as ferramentas
@@ -1098,6 +1129,7 @@ export function textos(lingua) {
   const l = lingua in T ? lingua : 'pt';
   if (cache.has(l)) return cache.get(l);
   const i = ORDEM.indexOf(l);
+  const extra = MAIS[l];
   const local = LOCAIS[l];
   let nomesPaises = null;
   try { nomesPaises = new Intl.DisplayNames([local], { type: 'region' }); } catch { /* fica o nome em inglês */ }
@@ -1122,9 +1154,9 @@ export function textos(lingua) {
       const opcoes = { day: 'numeric', month: 'long', year: 'numeric' };
       try { return new Date(ms).toLocaleDateString(local, { ...opcoes, timeZone: fuso }); } catch { return new Date(ms).toLocaleDateString(local, opcoes); }
     },
-    genero: (g) => GENEROS[g]?.[i] || g,
+    genero: (g) => (extra ? extra.generos[g] : GENEROS[g]?.[i]) || g,
     pais: (p) => {
-      if (PAISES_ANTIGOS[p]) return PAISES_ANTIGOS[p][i];
+      if (PAISES_ANTIGOS[p]) return (extra ? extra.antigos[p] : PAISES_ANTIGOS[p][i]) || p;
       const codigo = PAISES[p];
       if (!codigo || !nomesPaises) return p;
       try { return nomesPaises.of(codigo) || p; } catch { return p; }
@@ -1136,7 +1168,7 @@ export function textos(lingua) {
       return PERIODOS[l][3];
     },
     periodos: PERIODOS[l],
-    hora: (h) => ({ pt: `${h}h`, en: `${h}:00`, fr: `${h} h`, es: `${h} h`, it: `${h}:00` })[l],
+    hora: HORAS[l],
   };
   cache.set(l, t);
   return t;
