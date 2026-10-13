@@ -384,6 +384,7 @@ function abrirPagina(titulo, contexto, filmesDaBarra) {
   $('#pagina-sub').textContent = `${contexto} · ${t.filmes(ordenados.length)}`;
   $('#pagina-filmes').innerHTML = ordenados.map(cartaoFilme).join('');
   if (!janelaFilmes.open) {
+    document.documentElement.classList.add('pagina-aberta');
     janelaFilmes.showModal();
     // O botão "anterior" do navegador (ou do telemóvel) fecha a página.
     history.pushState({ pagina: true }, '', '#filmes');
@@ -401,6 +402,8 @@ function fecharPagina() {
 }
 
 $('#pagina-voltar').addEventListener('click', fecharPagina);
+// Seja qual for a forma de fechar, o painel de fundo volta a deslocar-se.
+janelaFilmes.addEventListener('close', () => document.documentElement.classList.remove('pagina-aberta'));
 janelaFilmes.addEventListener('cancel', (e) => { e.preventDefault(); fecharPagina(); }); // tecla Esc
 addEventListener('popstate', () => {
   paginaNoHistorico = false;

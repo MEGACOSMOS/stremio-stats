@@ -157,6 +157,11 @@ function manifesto(origem, cfg, t) {
     idPrefixes: [PREFIXO],
     catalogs: [],
     behaviorHints: { configurable: true, configurationRequired: !cfg },
+    // Prova de que a extensão é nossa, para o catálogo stremio-addons.net (é pública por natureza).
+    stremioAddonsConfig: {
+      issuer: 'https://stremio-addons.net',
+      signature: 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..c0x2U26oGjVnLs_3Ny1nAA.xQs5lxW39N-yaVnwXztEzf-YW88dT3xKOK2npODairk2L5N5X3ow6wvOc3wGKfXZbBaWouDFVqE5dfuCdAVtYBdYdIMhV6ne7WyGw-qg7plN-sgLhmD6ebhXUc3RcdVR.iN4eFKY5xV4z_R83LJlL_A',
+    },
   };
   if (cfg) {
     m.catalogs = [

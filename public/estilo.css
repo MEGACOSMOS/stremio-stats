@@ -308,9 +308,13 @@ dialog .acoes { justify-content: flex-start; margin: 20px 0 8px; }
 
 /* Página com os filmes de uma barra */
 dialog.pagina {
-  max-width: none; width: 100%; height: 100%; max-height: none; margin: 0; padding: 0;
+  max-width: none; width: 100%; height: 100%; height: 100dvh; max-height: none; margin: 0; padding: 0;
   border: 0; border-radius: 0; background: var(--fundo); box-shadow: none; overflow-y: auto;
+  /* Ao chegar ao fim, o deslocamento não passa para o painel que está por trás. */
+  overscroll-behavior: contain;
 }
+/* Com a página aberta, o painel de fundo fica parado. */
+html.pagina-aberta, html.pagina-aberta body { overflow: hidden; }
 dialog.pagina::backdrop { background: var(--fundo); }
 .pagina-topo {
   position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
