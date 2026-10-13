@@ -12,10 +12,23 @@ const instante = (v) => {
   return Number.isFinite(t) ? t : null;
 };
 
+// Quantas vezes um filme foi visto. Regras do Stremio (stremio-core):
+// - "visto" é só timesWatched > 0 (LibraryItem::watched). O flaggedWatched não
+//   serve: desmarcar um filme põe timesWatched a 0 mas deixa flaggedWatched a 1.
+// - Num filme, timesWatched só sobe na primeira vez que passa os 70 %: o
+//   flaggedWatched só volta a 0 quando muda o vídeo, o que num filme não
+//   acontece. Rever não conta. Por isso as revisões estimam-se pelo tempo total
+//   a dar (overallTimeWatched) a dividir pela duração: ~0,9 = 1 vez, ~1,8 = 2.
+export function vezesVisto(s) {
+  const marcado = s.timesWatched || 0;
+  if (marcado <= 0) return 0;
+  const pelaReproducao = s.duration > 0 ? Math.floor((s.overallTimeWatched || 0) / s.duration + 0.25) : 0;
+  return Math.max(marcado, pelaReproducao);
+}
+
 // Da biblioteca do Stremio (tal como vem da API) aos filmes vistos e aos que
-// ficaram a meio. "Visto" é o mesmo critério que o próprio Stremio usa:
-// timesWatched > 0 (ou marcado à mão como visto). Contam também os filmes que
-// já foram tirados da biblioteca, porque o histórico continua lá.
+// ficaram a meio. Contam também os filmes que já foram tirados da biblioteca,
+// porque o histórico continua lá.
 export function lerBiblioteca(itens) {
   const vistos = [];
   const porAcabar = [];
@@ -26,7 +39,7 @@ export function lerBiblioteca(itens) {
       id: i._id,
       nome: i.name || i._id,
       poster: i.poster || (i._id.startsWith('tt') ? posterDe(i._id) : null),
-      vezes: Math.max(s.timesWatched || 0, s.flaggedWatched ? 1 : 0),
+      vezes: vezesVisto(s),
       quando: instante(s.lastWatched),
       adicionado: instante(i._ctime),
       duracao: s.duration || 0,

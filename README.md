@@ -72,7 +72,11 @@ Want to see what it looks like first? There's an **[example with a made-up histo
   lists them as "no reliable date".
 - Genres, directors, actors, countries, ratings and runtimes come from **Cinemeta**, Stremio's official catalogue,
   which sometimes has mistakes (release years, for example).
+- **Rewatches are estimated.** Stremio only counts a movie as watched once — rewatching it never raises its counter — so Stremio Stats works out how many times you watched each movie from its total playback time divided by its length.
+- A movie counts as watched exactly when Stremio says so: once 70 % of it has played, or when you mark it as watched. Unmarking it removes it.
 - Only movies are counted; series are left out.
+
+How Stremio records each movie, and the rules above, are checked by `scripts/testar-registos.mjs` (a small simulation of Stremio's own recording logic) and `scripts/testar-datas.mjs`.
 
 ## For developers
 
